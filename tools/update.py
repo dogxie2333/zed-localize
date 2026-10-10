@@ -13,6 +13,9 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from community_bridge import PIN, load_toolkit, write
+from repo_bridge import checkout,revision as repo_revision
+STATE_ROOT=Path(os.environ['ZED_ZH_STATE_DIR']) if os.environ.get('ZED_ZH_STATE_DIR') else ROOT
+CACHE_ROOT=STATE_ROOT/'.cache'
 
 def github(path):
     request = urllib.request.Request("https://api.github.com/" + path, headers={"User-Agent": "zed-zh-addon-maintenance"})
@@ -26,26 +29,13 @@ def github(path):
 def run(*args, cwd=None):
     subprocess.run(list(map(str, args)), cwd=cwd, check=True, stdout=subprocess.DEVNULL)
 
-def checkout(url, reference, target):
-    created = not target.exists()
-    if created:
-        run("git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--no-checkout", url, target)
-    actual = subprocess.check_output(["git", "-C", str(target), "remote", "get-url", "origin"], text=True).strip()
-    if actual.rstrip("/").removesuffix(".git") != url.removesuffix(".git"):
-        raise ValueError("Cache checkout has an unexpected origin")
-    if not created and subprocess.run(["git", "-C", str(target), "diff", "--quiet", "HEAD"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
-        raise ValueError("Cache checkout contains user modifications")
-    run("git", "-C", target, "fetch", "--quiet", "--depth", "1", "origin", reference)
-    run("git", "-C", target, "checkout", "--quiet", "--detach", "FETCH_HEAD")
-    return subprocess.check_output(["git", "-C", str(target), "rev-parse", "HEAD"], text=True).strip()
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--check-only", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--maintainer", type=Path)
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--cache", type=Path, default=ROOT / ".cache/translations.redb")
+    parser.add_argument("--cache", type=Path, default=CACHE_ROOT/'translations.redb')
     parser.add_argument("--toolkit", type=Path, help="Reuse a clean existing community checkout at the detected commit")
     parser.add_argument("--source-root", type=Path, help="Reuse a clean existing official checkout at the detected tag")
     args = parser.parse_args()
@@ -56,8 +46,8 @@ def main():
     community_commit = github("repos/LI-NA/zed-i18n/commits/master")["sha"]
     if not re.fullmatch(r"[0-9a-f]{40}", community_commit):
         raise ValueError("Unexpected community commit")
-    state_path = ROOT / "data/upstream-state.json"
-    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state_path = STATE_ROOT/'upstream-state.json' if STATE_ROOT!=ROOT else ROOT/'data/upstream-state.json'
+    state = json.loads((state_path if state_path.exists() else ROOT/'data/upstream-state.json').read_text(encoding="utf-8"))
     changed = state.get("latest_tag") != tag or state.get("community_commit") != community_commit
     api_ready = bool(os.environ.get("ZED_I18N_API_KEY") and os.environ.get("ZED_I18N_MODEL"))
     work_needed = changed or (state.get("translation_status") == "pending-api" and api_ready)
@@ -68,17 +58,17 @@ def main():
     if not work_needed and not args.force:
         print("No new upstream text; no AI request")
         return
-    toolkit = args.toolkit.resolve() if args.toolkit else ROOT / ".cache/community-tools" / PIN
+    toolkit = args.toolkit.resolve() if args.toolkit else CACHE_ROOT/'community-tools'/PIN
     if args.toolkit:
         load_toolkit(toolkit)
     else:
         checkout("https://github.com/LI-NA/zed-i18n.git", PIN, toolkit)
-    data_root = toolkit if community_commit == PIN else ROOT / ".cache/community-data" / community_commit
+    data_root = toolkit if community_commit == PIN else CACHE_ROOT/'community-data'/community_commit
     if data_root != toolkit:
         checkout("https://github.com/LI-NA/zed-i18n.git", community_commit, data_root)
-    source = args.source_root.resolve() if args.source_root else ROOT / ".cache/official" / tag
+    source = args.source_root.resolve() if args.source_root else CACHE_ROOT/'official'/tag
     if args.source_root:
-        source_commit = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
+        source_commit = repo_revision(source)
         if github("repos/zed-industries/zed/commits/" + tag)["sha"] != source_commit:
             raise ValueError("Existing official checkout is not the detected release tag")
     else:
@@ -89,7 +79,7 @@ def main():
         raise ValueError("Source commit is not confirmed public")
     load_toolkit(toolkit)
     project = tomllib.loads((data_root / "config/project.toml").read_text(encoding="utf-8"))
-    prepared = ROOT / ".cache/jobs" / tag
+    prepared = CACHE_ROOT/'jobs'/tag
     prepared.mkdir(parents=True, exist_ok=True)
     manifest_arg = []
     if project.get("zed_commit") != source_commit:
@@ -104,6 +94,10 @@ def main():
     run(sys.executable, ROOT / "tools/community_bridge.py", "prepare", "--toolkit", toolkit,
         "--source-root", source, "--out", prepared, "--data-root", data_root, *manifest_arg)
     jobs = json.loads((prepared / "jobs.json").read_text(encoding="utf-8"))
+    # Public extraction/context only. Native end-user settings consume this
+    # reviewed job envelope; provider credentials and replies never enter it.
+    if STATE_ROOT == ROOT:
+        write(ROOT / 'data/translation-jobs.json', jobs)
     missing = sum(len(batch["entries"]) for batch in jobs["batches"])
     translated = {"translations": {}, "status": "draft", "batch_requests": 0, "local_cache_hits": 0,
                   "review_required": jobs["review_required"], "runtime_compatibility_approved": False}
@@ -121,7 +115,7 @@ def main():
              "new_text_count": missing, "translation_status": status, **translated}
     # No jobs, raw model responses, API configuration or source paths enter the
     # public draft. Only validated translations and review metadata are exported.
-    write(ROOT / "data/drafts" / f"{tag}.json", draft)
+    write((STATE_ROOT/'drafts' if STATE_ROOT!=ROOT else ROOT/'data/drafts') / f"{tag}.json", draft)
     write(state_path, {"latest_tag": tag, "community_commit": community_commit,
                       "translation_status": status, "runtime_compatibility_approved": False})
     print(json.dumps({"latest_tag": tag, "new_text_count": missing, "translation_status": status,

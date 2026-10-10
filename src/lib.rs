@@ -1,4 +1,11 @@
 pub mod catalog;
+#[cfg(all(windows, feature = "ui"))]
+pub mod configuration;
+#[cfg(windows)]
+pub mod gadget_runtime;
+#[cfg(all(windows, feature = "portable"))]
+pub mod portable;
+pub mod runtime_paths;
 #[cfg(feature = "ai")]
 pub mod translation;
 #[cfg(windows)]

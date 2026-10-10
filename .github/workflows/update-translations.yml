@@ -46,7 +46,7 @@ jobs:
         run: |
           rustup toolchain install 1.99.0 --profile minimal
           cargo +1.99.0 build --release --locked --features ai
-          python -m pip install 'tree-sitter>=0.25,<0.26' 'tree-sitter-rust>=0.24,<0.25'
+          python -m pip install -r requirements-maintenance.txt
       - name: Prepare missing public UI text and translate drafts
         if: steps.check.outputs.needed == 'true'
         env:
@@ -73,7 +73,7 @@ jobs:
           config.write_text(text,encoding='utf-8')
           command=[sys.executable,'tools/update.py']
           if os.environ.get('ZED_I18N_API_KEY') and model:
-              command += ['--maintainer','target/release/zed-zh-addon','--config',str(config)]
+              command += ['--maintainer','../.build-cache/zed-zh-addon/target/release/zed-zh-addon','--config',str(config)]
           subprocess.run(command,check=True)
           PY
       - name: Save validated public translation cache
@@ -96,4 +96,5 @@ jobs:
           draft: true
           add-paths: |
             data/upstream-state.json
+            data/translation-jobs.json
             data/drafts/*.json

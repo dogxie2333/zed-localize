@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+from repo_bridge import revision as repo_revision, origin as repo_origin, clean as repo_clean, tracked as repo_tracked
 
 PIN = "99301f35d52a33a940ac9a6bfc1d8e5f5decf67b"
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,10 +29,10 @@ def write(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 def load_toolkit(path: Path):
-    revision = subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
+    revision = repo_revision(path)
     if revision != PIN:
         raise ValueError("Community executable tools require the reviewed pinned commit")
-    if subprocess.run(["git", "-C", str(path), "diff", "--quiet", "HEAD", "--", "tools", "prompts", "manifest", "translations", "catalog", "config"]).returncode:
+    if not repo_clean(path):
         raise ValueError("Upstream checkout has unreviewed modifications")
     sys.path.insert(0, str(path))
     return revision
@@ -68,12 +69,12 @@ def prepare(args):
     revision = load_toolkit(args.toolkit)
     from tools.zed_i18n.translation_pipeline import PrepareTranslationOptions, prepare_translation_batches
     source_root = args.source_root.resolve()
-    remote = subprocess.check_output(["git", "-C", str(source_root), "remote", "get-url", "origin"], text=True).strip()
+    remote = repo_origin(source_root)
     if remote.rstrip("/").removesuffix(".git") not in {"https://github.com/zed-industries/zed", "git@github.com:zed-industries/zed"}:
         raise ValueError("Only the public official Zed checkout may supply API context")
-    if subprocess.run(["git", "-C", str(source_root), "diff", "--quiet", "HEAD"]).returncode:
+    if not repo_clean(source_root):
         raise ValueError("Zed source context must be clean")
-    source_commit = subprocess.check_output(["git", "-C", str(source_root), "rev-parse", "HEAD"], text=True).strip()
+    source_commit = repo_revision(source_root)
     if source_commit != "c0199504b9cce79bc27524950022ed701bc3ebd5":
         request = urllib.request.Request("https://api.github.com/repos/zed-industries/zed/commits/" + source_commit,
                                          headers={"User-Agent": "zed-zh-addon-public-context-check"})
@@ -95,7 +96,7 @@ def prepare(args):
                 raise ValueError("Community data path escapes its checkout")
             write(stage / name, read(data_file))
     manifest = read(args.manifest) if args.manifest else read(stage / "manifest/ui-strings.json")
-    tracked = set(subprocess.check_output(["git", "-C", str(source_root), "ls-tree", "-r", "--name-only", "HEAD"], text=True).splitlines())
+    tracked = repo_tracked(source_root)
     for entry in manifest.values():
         for occurrence in entry.get("occurrences", []):
             name = occurrence.get("file", "")

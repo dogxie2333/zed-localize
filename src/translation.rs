@@ -231,7 +231,7 @@ impl Cache {
     }
 }
 
-pub trait Validator {
+pub trait Validator: Sync {
     fn validate(&self, jobs: &Jobs, batch: &Batch, response: &Value) -> Result<()>;
 }
 
@@ -281,7 +281,7 @@ pub async fn translate_jobs(
     cache_path: &Path,
     refresh: bool,
     validator: &dyn Validator,
-    api_key: impl Fn() -> Result<String>,
+    api_key: impl Fn() -> Result<String> + Send,
 ) -> Result<Value> {
     ensure!(
         jobs.schema == 1 && jobs.locale == "zh-CN",
@@ -511,6 +511,39 @@ pub async fn translate(
             .map_err(|_| anyhow::anyhow!("API key environment variable is not set"))
     })
     .await
+}
+
+/// Native end-user maintenance produces review drafts, never approved runtime
+/// strings. It reuses the SDK, semantic cache keys and exact response-key checks.
+/// Community validation stays in the maintainer/CI workflow. A separate cache
+/// file prevents draft results from entering the validated maintenance cache.
+pub async fn native_drafts(
+    jobs: &Jobs,
+    config: &Config,
+    draft_cache: &Path,
+    key: &str,
+) -> Result<Value> {
+    struct Draft;
+    impl Validator for Draft {
+        fn validate(&self, _jobs: &Jobs, _batch: &Batch, response: &Value) -> Result<()> {
+            ensure!(
+                response
+                    .as_object()
+                    .is_some_and(|object| object.values().all(|value| value.is_null()
+                        || value.as_str().is_some_and(|text| !text.contains('\0')))),
+                "Invalid draft text"
+            );
+            Ok(())
+        }
+    }
+    let mut result = translate_jobs(jobs, config, draft_cache, false, &Draft, || {
+        Ok(key.to_owned())
+    })
+    .await?;
+    result["status"] = json!("draft-needs-community-validation");
+    result["community_validated"] = json!(false);
+    result["runtime_compatibility_approved"] = json!(false);
+    Ok(result)
 }
 
 pub async fn check_update() -> Result<Value> {

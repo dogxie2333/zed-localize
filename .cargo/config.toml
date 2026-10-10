@@ -1,0 +1,3 @@
+[build]
+target-dir = "../.build-cache/zed-zh-addon/target"
+jobs = 1

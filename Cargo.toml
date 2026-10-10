@@ -1,15 +1,17 @@
 [package]
 name = "zed-zh-addon"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
-rust-version = "1.90"
-license = "GPL-3.0-only"
+rust-version = "1.99"
+license = "MIT"
 description = "Experimental localization companion for official Zed, with offline update-time translation"
 repository = "https://github.com/dogxie2333/zed-zh-addon"
 
 [features]
 default = []
 ai = ["dep:async-openai", "dep:tokio", "dep:reqwest", "dep:redb", "dep:toml", "dep:tempfile"]
+portable = ["dep:zip"]
+ui = ["ai", "dep:axum", "dep:tower-http", "dep:rfd", "dep:keyring", "dep:getrandom"]
 
 [dependencies]
 anyhow = "1"
@@ -18,10 +20,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 hex = "0.4"
+json5 = "0.4"
 goblin = "0.10"
 memmap2 = "0.9"
 aho-corasick = "1"
-async-openai = { version = "=0.42.2", default-features = false, features = ["chat-completion", "native-tls", "byot"], optional = true }
+async-openai = { version = "=0.42.2", default-features = false, features = ["chat-completion", "model", "native-tls", "byot"], optional = true }
 tokio = { version = "1", features = ["rt", "time", "net"], optional = true }
 reqwest = { version = "0.13", default-features = false, features = ["native-tls", "json"], optional = true }
 redb = { version = "=4.3.0", optional = true }
@@ -29,11 +32,22 @@ toml = { version = "0.9", optional = true }
 tempfile = { version = "3", optional = true }
 
 [target.'cfg(windows)'.dependencies]
+axum = { version = "0.8", optional = true }
+tower-http = { version = "0.6", features = ["fs"], optional = true }
+rfd = { version = "=0.17.2", default-features = false, optional = true }
+keyring = { version = "=3.6.3", default-features = false, features = ["windows-native"], optional = true }
+getrandom = { version = "0.3", optional = true }
 notify = "8"
-windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_System_Memory", "Win32_System_ProcessStatus", "Win32_System_SystemInformation", "Win32_System_JobObjects"] }
+tray-icon = { version = "=0.26.1", default-features = false }
+dll-syringe = { version = "=0.18.2", default-features = false, features = ["syringe"] }
+zip = { version = "4", default-features = false, features = ["deflate"], optional = true }
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Registry", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Memory", "Win32_System_ProcessStatus", "Win32_System_SystemInformation", "Win32_System_JobObjects", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile = "3"
+
+[build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 lto = "thin"
@@ -43,3 +57,8 @@ strip = true
 [[bin]]
 name = "zed-zh-launcher"
 path = "src/bin/zed-zh-launcher.rs"
+
+[[bin]]
+name = "zed-zh-settings"
+path = "src/bin/zed-zh-settings.rs"
+required-features = ["ui"]

@@ -1,17 +1,15 @@
-# 显示补丁与 AI 页面复用决策
+# 原生设置与显示补丁
 
-用户明确要求继续使用官方包补丁、保持主线更新，并希望 AI 设置页面能选 DeepSeek/GLM。现有静态 UTF-8 数据替换无法覆盖短菜单；补充经过指定哈希验证的 DirectWrite 显示替换，继续保留原 CLI。
+主入口和托盘使用 Rust、notify、tray-icon 与官方 Windows API。显示引擎使用官方 Frida Gadget 与 dll-syringe，保留指定官方包哈希的字体、调用位置和文件名保护，不修改官方磁盘文件。
 
-入口和快捷方式守护器采用 Rust + notify，系统登录时仅运行此小型守护器，不自动开 Zed。Frida 官方 Python 绑定负责进程挂接、子进程门控和脚本生命周期；Rust Frida 绑定在此次评估时接口成熟度不足以替换官方绑定，故保留薄 Python 桥接。脚本只包含本项目必要的 UI 过滤与词典替换，不重写注入器。
+设置服务从 Gradio/Python 迁移到独立的 Rust 按需组件。HTTP、静态文件、凭据、文件夹选择和图标编译分别复用 Axum、tower-http、keyring、rfd、winresource。页面复用 Vue 3.5.43、Element Plus 2.14.7、Vite 8.3.4；设置服务不与日常托盘一起加载，不包含嵌入式浏览器或 Python。组件仍由单个分发 EXE 首次解包，界面关闭后释放服务。
 
-AI 页面用 Gradio 组件和 LiteLLM SDK，OpenAI SDK 查询模型，keyring 管理用户自愿保存的系统凭据。页面按需在回环地址启动；不将 Gradio/LiteLLM 导入普通 Zed 启动控制器。AI 翻译维护沿用 async-openai + redb + 未修改的社区语境/校验工具，页面只负责调用已有流程。
+AI 的 OpenAI 兼容传输、模型查询和完成请求复用 async-openai 0.42.2。语义缓存复用既有 Rust + redb 实现，缓存包含公开源文、稳定语境、术语、模型、接口和校验指纹，行号或版本漂移不会单独失效。前端语言包是静态数据，不用 AI 实时翻译。
 
-维护状态用本机此次安装的 PyPI 正式发行包、版本固定与上游文档评估；不据此保证未来持续维护。DirectWrite 后端及启动器仅验证 Windows x64；notify 和 Python SDK 可跨平台不代表本项目汉化已支持 ARM64/Linux/macOS。ARM64 当前没有已验证适配，不能套用 x64 调用位置。
+社区提取器和校验器仍在维护端与 CI 使用 Python/Dulwich/tree-sitter，保留固定快照。维护流程导出公开 `data/translation-jobs.json`；本地原生服务消费该文案和语境生成待审草稿，使用独立 draft-translations.redb。原生草稿不标记为社区已校验，不进入经过校验的缓存，不自动安装或扩大运行时支持哈希。社区校验与二进制适配仍分别审核。
 
-资源成本：Rust 守护器低频轮询（不少于 5 秒）与文件系统事件；Python/Frida 控制器在 Zed 会话期间常驻；Gradio/LiteLLM 及其安装依赖明显更大，仅打开设置页时加载。实测工作集写在本机实施记录，不宣传零开销。Frida 拦截仍有每个匹配候选的栈检查成本，6499 条是离线可匹配字典数，不是实际页面覆盖率。
+服务只绑定 127.0.0.1，修改操作校验本机 Host、Origin 和会话 nonce。API 密钥不写入配置、报告、日志或提交，不输出供应商错误正文；旧系统凭据按原名称读取，新保存使用独立条目。文件夹选择只在用户点击后调用系统对话框。
 
-新建暂停编辑器使用 Windows Job Object 启动保护，控制器在启动完成前异常退出时由内核清理其自有暂停子进程。成功恢复运行后撤销该保护，不因为控制器退出结束正在编辑的 Zed。
+依赖固定于 Cargo.lock 与 web/package-lock.json。直接组件许可保留在 THIRD_PARTY_NOTICES.md；自有代码 MIT，社区 GPL 资源保留原许可。当前只验证 Windows x64，跨平台 SDK 能力不代表汉化已支持 Linux/macOS/ARM64。
 
-升级：直接依赖固定在 requirements，Rust 固定 Cargo.lock；官方包哈希变化后只使用经过审查的适配数据。适配数据下载失败保留本机既有适配；新版本未知则打开英文。未来发行包适配与译文更新分开验证，AI 永远不能批准二进制哈希。
-
-回滚：保存并退出 Zed，用 install-startup.ps1 -Uninstall 恢复原快捷方式和删除本项目登录守护项；官方磁盘文件保持原样。运行时 Python/JS 替换只在下一次启动生效，不强制重载正在编辑的进程。
+回滚：退出托盘，恢复备份 EXE，保留 zed-zh-data。恢复原快捷方式使用解包目录中的 install-startup.ps1 -Uninstall；官方 Zed 文件保持原样。

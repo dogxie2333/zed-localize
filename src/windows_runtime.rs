@@ -405,6 +405,59 @@ impl Process {
         }
         Ok(())
     }
+
+    pub fn terminate_owned_child(&self, pid: u32, exe: &Path) -> Result<()> {
+        self.terminate_owned_descendant(pid, self.pid, exe)
+    }
+    pub fn terminate_owned_descendant(
+        &self,
+        pid: u32,
+        expected_parent: u32,
+        exe: &Path,
+    ) -> Result<()> {
+        use windows_sys::Win32::{
+            Foundation::INVALID_HANDLE_VALUE,
+            System::{
+                Diagnostics::ToolHelp::{
+                    CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
+                    TH32CS_SNAPPROCESS,
+                },
+                Threading::PROCESS_TERMINATE,
+            },
+        };
+        ensure!(
+            self.owned,
+            "Only our isolated test parent may clean up its child"
+        );
+        let child = Self::open(pid)?;
+        child.verify_identity(exe)?;
+        let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
+        ensure!(
+            snapshot != INVALID_HANDLE_VALUE,
+            "Could not verify child parent"
+        );
+        let snapshot = Handle(snapshot);
+        let mut entry: PROCESSENTRY32W = unsafe { zeroed() };
+        entry.dwSize = size_of::<PROCESSENTRY32W>() as u32;
+        let mut found = false;
+        let mut ok = unsafe { Process32FirstW(snapshot.0, &mut entry) };
+        while ok != 0 {
+            if entry.th32ProcessID == pid {
+                found = entry.th32ParentProcessID == expected_parent;
+                break;
+            }
+            ok = unsafe { Process32NextW(snapshot.0, &mut entry) };
+        }
+        ensure!(found, "PID was not created by our isolated test parent");
+        let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
+        ensure!(!handle.is_null(), "Could not open own test child");
+        let handle = Handle(handle);
+        ensure!(
+            unsafe { TerminateProcess(handle.0, 0) } != 0,
+            "Could not clean own test child"
+        );
+        Ok(())
+    }
 }
 
 impl Drop for Process {

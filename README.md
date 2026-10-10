@@ -1,191 +1,44 @@
-# Zed 官方主线中文附件
+# Zed 中文补丁
 
-保留官方 Zed 安装包和更新渠道，独立附件提供中文显示补丁、Rust 启动入口与更新后的快捷方式修复。AI 只参与版本更新后的批量翻译维护，编辑器启动、输入、搜索和绘制时不调用 AI。
+在**官方 Zed** 中加载中文界面，继续使用 **Zed 官方主线与官方更新渠道**。
 
-**这是实验性汉化附件，尚未完成全部页面验收。** 当前只批准一份官方 Windows x64 Zed **1.23.2** 安装包。新增显示补丁模式复用社区词典，6499 条文案可参与离线匹配，已实际观察菜单和设置等界面中文；此数量不等于全界面覆盖数。原静态 CLI 保留保守档 215 条及扩展档 668 条候选。官方更新后未适配的新哈希会正常打开英文版。
+## 下载与使用
 
-## 推荐：显示补丁与 AI 设置页面
+从 GitHub Releases 下载 `Zed-Zh-Addon.exe`，放在固定、可写的文件夹，双击运行。
 
-日常从原桌面/开始菜单“Zed”启动，独立附件会重新应用显示补丁；登录守护器修复官方更新覆盖的快捷方式。开始菜单“Zed 汉化设置”打开回环地址上的配置页面，选择 **DeepSeek、GLM 国内 BigModel、GLM 国际 Z.AI 或其他 OpenAI 兼容服务**，查询模型、测试连接和保存配置。
+1. 选择包含 `Zed.exe` 的安装文件夹。
+2. 选择开机自启或手动启动，点击「保存并启用托盘」。
+3. 点击「启动中文 Zed」，以后照常使用原来的 Zed 快捷方式。
 
-页面复用 **Gradio + LiteLLM + OpenAI SDK + keyring**，按需启动。密钥默认不保存；只有用户自行勾选时才写入 Windows 凭据管理器，项目配置不保存密钥。AI 仅生成更新维护的待审译文，运行中不请求模型。
+右下角托盘图标可以右键打开设置、暂停汉化或退出。设置页提供固定左侧导航，支持简体中文、繁体中文和 English；编辑器汉化目前为简体中文。
 
-```powershell
-# 显示补丁发行包或源码根目录：首次安装
-powershell -NoProfile -ExecutionPolicy Bypass -File runtime/setup.ps1 -ZedExe D:\Zed\Zed.exe -WithSettings
-```
+**AI 是可选功能。** 已有译文在本地加载，输入、滚动和界面显示不调用 AI。可选择 DeepSeek、GLM 或其他 OpenAI 兼容接口；密钥仅在内存或你选择的 Windows 凭据管理器中保存。
 
-需要 Python 3.12 以上；源码方式还需 Rust/Windows 链接器，发行包提供启动器和维护二进制。详细启动方式、补丁原理、更新边界、AI 页面和回滚见 [本地使用说明](docs/LOCAL_USAGE.md)，复用及资源成本见 [运行层决策](docs/RUNTIME_DECISION.md)。
+## 跟随官方主线更新
 
-项目保留 GPL-3.0，按用户要求仅维护官方发行包的补丁模式，不增加自编译 Zed 或改装社区发行版的路线。
+直接安装、更新官方 Zed，原有设置、登录和插件继续使用。补丁在启动和重启时重新加载，监控官方安装目录的变化。
 
-## 设计与复用
+新版本需要经过二进制适配验证；尚未适配时正常打开英文版，后续收到经过验证的适配再启用汉化。AI 翻译只生成待审文案，不能批准新二进制。当前验证目标为 Zed 1.23.2 的指定 Windows x64 官方包，不宣称每个新版本或全部界面都已覆盖。
 
-| 部分 | 复用项目 | 本项目负责的胶水 |
-|---|---|---|
-| 中文词典、文案提取、术语、语境、校验 | [LI-NA/zed-i18n](https://github.com/LI-NA/zed-i18n) | 导入已验证词典，适配官方发行包，生成待审更新 |
-| Windows 进程和内存 | Microsoft Windows 官方 API、[windows-rs](https://github.com/microsoft/windows-rs) | 启动自有暂停进程、检查身份、数据写入与回滚 |
-| PE 解析和扫描 | [goblin](https://github.com/m4b/goblin)、[Aho-Corasick](https://github.com/BurntSushi/aho-corasick)、memmap2 | 在 `.rdata` 查找唯一文案，控制可写范围 |
-| OpenAI 兼容 API | [async-openai](https://github.com/64bit/async-openai)、reqwest | 更新时批量调用、固定提示前缀、预算与超时 |
-| 持久翻译缓存 | [redb](https://github.com/cberner/redb) | 源文与语义上下文键、校验后入库 |
-| 更新检查与待审 PR | GitHub Actions、GitHub CLI | 检查公开上游版本，复用社区工具，生成草稿 |
-| 显示补丁、重启会话 | Frida 官方 Python 绑定 | 指定哈希上的 UI 路径过滤、离线词典替换 |
-| AI 设置页面 | Gradio、LiteLLM、OpenAI SDK、keyring | 本机供应商预设、配置保存及维护入口 |
-| 快捷方式守护 | Rust notify、Windows API | 原入口备份、更新覆盖修复 |
+## 轻量运行
 
-Python 原型已先验证；原静态运行工具、维护工具和新增 GUI 入口采用 Rust。显示模式保留成熟 Frida 官方 Python 事件桥接，AI 页面采用成熟 Python 项目，均按需加载。没有重写社区提取器、占位符校验器、AI SDK、数据库或 DLL 注入器。
+日常入口、托盘和按需设置服务使用 Rust。前端复用 Vue / Element Plus，显示引擎复用官方 Frida Gadget。分发包**不含 Python、Gradio 或 LiteLLM 运行时**，不用另装 Python、pip、Rust 或 Git。
 
-优先复用的执行要求写在 [AGENTS.md](AGENTS.md)；[agent.md](agent.md) 提供同一规则的入口。
+单 EXE 首次会在旁边创建 `zed-zh-data`，保存少量解包文件、配置和缓存；设置页关闭后释放服务，托盘继续运行。实际体积和本机测量见 [性能说明](docs/PERFORMANCE.md)。
 
-## 原静态 CLI 运行版
+## 开发与许可
 
-从 Releases 获取 `zed-zh-addon.exe`。运行版不需要 Python、Frida 或 API 密钥。程序会尝试从常见安装目录和 PATH 找到 Zed；找不到时传 `--exe "你的官方 Zed.exe 路径"`。
+- `src/`：Rust 入口、托盘、设置服务、AI SDK 与缓存。
+- `web/`：Vue / Element Plus 页面和三个语言包。
+- `assets/`、`data/`：图标、社区译文与经过审查的适配。
+- `tools/`：复用社区的提取、校验、维护与测试工具。
+- `packaging/`：单 EXE 打包；构建输出位于项目外的 `.build-cache`。
+- `docs/`、`licenses/`：使用说明、测试边界和完整许可。
 
-```powershell
-# 查看规划，完整文案与位置写入文件
-.\zed-zh-addon.exe plan --output plan.json
+Windows 源码构建：安装 Rust 1.99 GNU、Node.js、Python（仅构建/维护用）和 MinGW，运行 `packaging/build-portable.ps1`。dll-syringe 需要上游不稳定接口，构建脚本仅对该 crate 启用 `RUSTC_BOOTSTRAP`；日常程序不需要这些开发工具。
 
-# 先使用独立资料目录预览
-.\zed-zh-addon.exe launch --experimental --isolated
+**自有源代码：MIT。** 社区译文、Zed 衍生图标等资源保留 GPL-3.0 与上游声明，不能将整个资源包改标为纯 MIT。分发附带两类完整许可，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
 
-# 扩展到设置标题、纯文本说明和通知；仍属实验功能
-.\zed-zh-addon.exe launch --experimental --extended --isolated
+感谢 **Zed Industries、LI-NA/zed-i18n、Microsoft/vscode-loc、Frida** 及所有底层组件维护者，完整名单见 [鸣谢](ACKNOWLEDGEMENTS.md)。
 
-# 保存工作并关闭已有 Zed 后，用现有用户资料目录启动
-.\zed-zh-addon.exe launch --experimental
-
-# 不启用实验后端，正常打开官方英文版
-.\zed-zh-addon.exe launch
-
-# 验证真实暂停进程中的应用、故障回滚和恢复
-.\zed-zh-addon.exe test-memory --output memory-test.json
-
-# 使用汉化启动时返回的 PID 恢复该进程，不结束进程
-.\zed-zh-addon.exe restore --pid 12345
-
-# 扩展档启动的进程，恢复时也必须指定同一个档位
-.\zed-zh-addon.exe restore --pid 12345 --extended
-```
-
-补丁只作用于本工具新建的暂停进程，不去汉化已有的其他 Zed 进程。原有英文 Zed 未关闭时，官方单实例转交可能使请求进入旧进程，先正常保存并关闭旧窗口。
-
-启动器应用后退出，补丁在 Zed 进程里保留。最彻底的恢复方式是保存工作、关闭 Zed，再从官方入口重启；运行中恢复静态文字后，已缓存的布局可能需要重开窗口或重启清除。附件不会改动磁盘上的官方程序和原用户设置。
-
-## 构建
-
-Rust 1.90 以上。Windows x64 可使用 MSVC（需要 Visual C++ Build Tools）或 MinGW GNU 工具链。本机验证使用 GNU Rust 1.99.0；CI 另测 Windows 和 Linux 的 Rust 代码。
-
-```powershell
-# 默认构建轻量运行版，不包含 AI 客户端与数据库
-cargo build --release --locked
-
-# 维护版：启用 AI 与持久缓存
-cargo build --release --locked --features ai
-
-# 全部 Rust 测试
-cargo test --locked --all-features
-```
-
-两次构建会生成同名二进制，请分别保存为 `zed-zh-addon.exe` 和 `zed-zh-maintain.exe`；Release 工作流已分别打包。维护版的网络和缓存代码只由明确的维护子命令执行，`launch` 不建立 Tokio 运行时、不检查更新、不读取 AI 缓存。
-
-当前进程后端仅验证 Windows x64。Linux 可运行更新维护部分；没有宣称 Linux/macOS/ARM64 编辑器汉化可用。
-
-## 更新时批量翻译
-
-处理顺序是：**社区已有且校验通过的译文 → 本地语境缓存 → AI 批量请求 → 社区校验 → 待审草稿/PR**。
-
-自动化每天检查官方稳定版和社区提交；未变化时只检查元数据，不编译维护工具、不克隆源码、不调用 AI。发生变化时读取公开官方源码，用社区提取器和 `prepare_translation_batches` 生成缺失文案、周围 12 行代码、控件类型、调用位置、关联设置标题/说明、现有译文和中文术语背景。
-
-AI 输出不直接进入运行版。提取器的 `needs_review` 状态会保留在草稿；新的安装包哈希也不会被 AI 或更新脚本自动批准。翻译完成不等于二进制补丁兼容。
-
-### 本地配置
-
-维护工具支持 **OpenAI 兼容 Chat Completions** 接口。复制 `config.example.toml` 为已被 Git 忽略的 `config.local.toml`，填写 `api_base` 和 `model`；密钥只放环境变量 `ZED_I18N_API_KEY`。
-
-DeepSeek 可直接复制 `config.deepseek.example.toml`：`https://api.deepseek.com/v1`、本次实际 `/models` 返回的 `deepseek-flash`、`max_tokens`、JSON 输出、关闭扩展思考。适配复用 async-openai 的 BYOT 能力，只补充供应商参数；没有另写一套 HTTP AI SDK。DeepSeek 原生缓存由服务自动管理，不发送 OpenAI 特有的 `prompt_cache_key`。同时读取原生 `prompt_cache_hit_tokens` 与兼容接口的 `cached_tokens` 字段。
-
-已完成真实 DeepSeek 1 批翻译及社区校验，第二次不提供密钥时本地缓存命中、请求为 0。本次真实请求服务端缓存命中 token 为 0；不把 mock 的命中数当作服务端实际结果。
-
-```powershell
-# 密钥通过交互输入进入当前进程环境，不写入配置或命令历史
-$env:ZED_I18N_API_KEY = Read-Host 'AI API Key' -MaskInput
-
-# 检查版本，不修改已安装的 Zed
-.\zed-zh-maintain.exe check-update
-```
-
-PowerShell 5.1 没有 `-MaskInput`，请在 PowerShell 7 中运行示例，或通过系统环境变量/CI Secrets 配置。不同兼容接口可能需要调整 `json_mode`、`strict_schema`、`use_legacy_max_tokens`。`provider_prompt_cache_key` 默认关闭，确认服务支持后再开启。模型名称由你配置，没有硬编码特定供应商或“最新模型”。
-
-首次维护需要 Python 3.12 以上及社区工具的 Tree-sitter 依赖：
-
-```powershell
-python -m pip install "tree-sitter>=0.25,<0.26" "tree-sitter-rust>=0.24,<0.25"
-
-# 检查上游；当前版本不变时不会请求 AI
-python tools/update.py --check-only
-
-# 自动准备新增文案并调用维护工具
-python tools/update.py --maintainer .\zed-zh-maintain.exe --config config.local.toml
-```
-
-也可以复用已有且干净的公开 checkout，通过 `--toolkit` 指定固定审查提交 `99301f35d52a33a940ac9a6bfc1d8e5f5decf67b` 的社区工具，通过 `--source-root` 指定检测到的官方稳定版源码。新社区词典以数据读取，自动化不执行其未审查的新 Python/提示代码，也不会重置用户 checkout。
-
-若只想准备上下文、不调用 AI，运行 `python tools/update.py`，无需密钥。社区已提供全部译文时，本次任务同样不会调用 AI。
-
-### GitHub 自动化
-
-仓库已经包含 `.github/workflows/update-translations.yml`：每天 UTC 01:00（北京时间 09:00）检查，也可以手动运行。
-
-在仓库 Settings → Secrets and variables → Actions 配置：
-
-| 类型 | 名称 | 用途 |
-|---|---|---|
-| Secret | `AI_API_KEY` | API 密钥，仅在维护步骤读入环境 |
-| Variable | `AI_API_BASE` | 兼容接口地址，未设置时使用 OpenAI 地址 |
-| Variable | `AI_MODEL` | 服务支持的模型名称 |
-| Variable | `AI_LEGACY_MAX_TOKENS` | 可选，填 `true` 适配仅支持 `max_tokens` 的服务 |
-| Variable | `AI_PROVIDER` | DeepSeek 填 `deepseek`，自动补充关闭思考及原生参数适配 |
-
-未配置接口时只同步社区信息、准备待审文案；不会调用收费 API。需要在 Actions 设置中允许工作流创建 pull request，自动 PR 才能打开。该流程不自动合并、不添加兼容哈希、不覆盖官方程序。
-
-本地 redb 缓存会在 GitHub Actions 工作任务间恢复并保存，只包含已校验的公开文案译文，不保存密钥或原始 API 错误正文。
-
-## 语境缓存
-
-每条文案的缓存键包含：英文源文、控件类型、调用位置、去除行号的源码背景、上下文组、翻译提示/术语、语言、模型、接口、校验器指纹及策略版本。
-
-行号、字节偏移、批次号、前后版本标记变化不会单独失效；真正的语境、术语、模型或校验规则变化会失效。缓存以文案为单位，批次重新分组也能复用；全部命中时可以不提供密钥，并且不请求 API。模型返回 `null` 的不确定项也保存为待审状态，避免反复请求同一语境。
-
-通用编辑器背景、中文风格和术语放在固定的 system 提示前缀，变化条目放在后面的 user 消息；可选发送 `prompt_cache_key`，并统计服务返回的 `cached_tokens`。服务端是否实际缓存取决于供应商；本地缓存与其无关。参见 [OpenAI Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)。
-
-维护请求有超时和每次最大批次数；成功批次逐批持久化，失败后可继续利用已完成缓存。占位符、受保护代码、键集合、值类型不合格的响应不入库；密钥回显也会被拒绝。
-
-## 验证与实际限制
-
-本地已经通过：
-
-- Rust 与 Python 的 **215 条候选逐项一致**；真实官方进程写入、拒绝原文不匹配、注入失败回滚、恢复通过。
-- Rust 启动器退出后，再由独立恢复进程还原 215 条；磁盘程序哈希保持不变。
-- 真实社区语境生成器、真实 Rust SDK、真实社区校验器配合本地 HTTP 模拟服务：首次 1 批请求，重复任务无密钥时 0 请求；行号/版本变化命中，语境变化重译；缺失占位符及密钥回显被拒绝。
-
-真实 DeepSeek 接口已完成单批测试，模型为认证后端实际返回的 `deepseek-flash`。API 密钥仅用于临时内存请求/子进程环境，没有保存到项目、缓存、日志或 GitHub Secret。日常自动化仍需用户自行配置自己的 Secret；已公开在聊天中的密钥建议撤销后替换。
-
-扩展档 668 条的真实内存应用、故障回滚、启动器退出后独立恢复均通过。启动保护还验证了“强制结束暂停启动器时，Windows 内核自动清理其自有暂停子进程”。这些测试不代表所有控件的视觉/交互验收。
-
-本机 GNU 运行版约 5.35 MiB；一次暖缓存观察中规划约 0.53 秒、启动约 0.91 秒。它不是普遍性能保证。完整验证与证据层级见 [docs/VALIDATION.md](docs/VALIDATION.md)。
-
-当前用尾部空格保持 UTF-8 字节长度，只处理普通静态文案。没有完成所有候选的视觉、交互、截断、复制、无障碍或长期使用验收，也没有完成真实跨版本升级验收。未被社区清单收录的共享常量用途仍需进一步分析。
-
-新增显示补丁在 DirectWrite 排版入口覆盖更多短文案，使用 UI 字体和已验证调用路径过滤，保护匹配词典的文件名。动态拼接、富文本、非 DirectWrite 绘制及未知调用路径仍可能遗漏；不宣称全部中文。尚未完成真实跨版本升级验收；重建快捷方式恢复与同版本关闭再开是不同的测试。
-
-## 能做成官方 Zed 插件吗？
-
-当前扩展的 WASM 接口提供语言服务、代码补全标签、调试、上下文服务等能力，没有全局界面文案替换或 GPUI 本地化回调。插件不能据此直接替换主程序的菜单、按钮和设置文本。
-
-可以研究“插件作为管理入口、独立补丁工具作为后端”的组合，但本地补丁依然需要外部进程能力；已经运行的编辑器也无法变成启动前的暂停进程。当前仍采用独立轻量程序，未发布把局部能力伪装成完整汉化的插件。
-
-词典中的 7430 条已接受源文均有中文译文，但这不等于 7430 条能在官方包中打补丁。计划报告会明确排除类型：短/格式化/更长译文、富文本、未找到连续文案、重复或共享文案、未纳入已验证范围。`plan --extended --output plan.json` 可查看实际候选和原因。
-
-## 开源与许可
-
-项目采用 GPL-3.0，第三方源码与数据保留各自许可和来源，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。不分发修改后的官方 Zed 或社区重新编译的 Zed。本项目与 Zed Industries 无关联，不是官方汉化插件。
+[完整使用说明](docs/LOCAL_USAGE.md) · [第三方组件与边界](docs/RUNTIME_DECISION.md)
