@@ -126,7 +126,12 @@ fn stable_context(value: &Value) -> Value {
                             | "batch_count"
                             | "from_version"
                             | "to_version"
-                    )
+                    ) && !(key.as_str() == "id"
+                        && object.contains_key("start_line")
+                        && object.contains_key("type"))
+                        && !(key.as_str() == "target"
+                            && object.contains_key("source")
+                            && object.contains_key("role"))
                 })
                 .map(|(key, value)| (key.clone(), stable_context(value)))
                 .collect(),
@@ -547,6 +552,30 @@ mod tests {
         let mut cfg = config();
         cfg.model = "other-model".into();
         assert_ne!(key, cache_key(&fixture_jobs(), &cfg, &entry).unwrap());
+    }
+
+    #[test]
+    fn group_line_ids_and_batch_target_flags_are_not_semantic() {
+        let jobs = fixture_jobs();
+        let a = json!({"source":"Open Settings","kind":"setting_title","context_group":{
+            "id":"setting:crates/settings/page.rs:81","type":"setting","file":"crates/settings/page.rs",
+            "start_line":81,"end_line":90,"context_key":"ui.settings","entries":[
+                {"source":"Open Settings","role":"title","target":true,"line":81},
+                {"source":"Choose editor preferences","role":"description","target":false,"line":83}]}});
+        let mut b = a.clone();
+        b["context_group"]["id"] = json!("setting:crates/settings/page.rs:91");
+        b["context_group"]["start_line"] = json!(91);
+        b["context_group"]["entries"][1]["target"] = json!(true);
+        b["context_group"]["entries"][1]["line"] = json!(93);
+        assert_eq!(
+            cache_key(&jobs, &config(), &a).unwrap(),
+            cache_key(&jobs, &config(), &b).unwrap()
+        );
+        b["context_group"]["entries"][1]["source"] = json!("Choose workspace preferences");
+        assert_ne!(
+            cache_key(&jobs, &config(), &a).unwrap(),
+            cache_key(&jobs, &config(), &b).unwrap()
+        );
     }
     #[test]
     fn refuse_embedded_keys_and_nonlocal_insecure_endpoints() {
