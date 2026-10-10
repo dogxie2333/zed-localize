@@ -1,5 +1,8 @@
 """Use mature Dulwich for public Git checkouts; portable runtime needs no Git CLI."""
 from pathlib import Path
+import os
+import shutil
+import subprocess
 from dulwich.repo import Repo
 from dulwich import porcelain
 from dulwich.client import get_transport_and_path
@@ -11,7 +14,20 @@ def origin(path):
     with Repo(str(path)) as repo:return repo.get_config().get((b'remote',b'origin'),b'url').decode()
 
 def clean(path):
-    status=porcelain.status(str(path))
+    # Native Git understands its own Windows/sparse checkout representation.
+    # It is already available in maintainer/CI checkouts; end-user Rust code
+    # never calls this module. Keep Dulwich for Git-free maintenance contexts.
+    git = shutil.which('git')
+    if git:
+        environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+        command = [git, '--no-optional-locks', '-C', str(path)]
+        prefix = subprocess.run(command + ['rev-parse', '--show-prefix'],
+                                env=environment, capture_output=True, check=True)
+        if prefix.stdout.strip(): return False
+        result = subprocess.run(command + ['status', '--porcelain=v1', '--untracked-files=no'],
+                                env=environment, capture_output=True, check=True)
+        return not result.stdout
+    status=porcelain.status(str(path), optional_locks=False)
     with Repo(str(path)) as repo:
         index=repo.open_index()
         dirty=[]

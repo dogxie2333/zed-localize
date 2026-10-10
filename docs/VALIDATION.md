@@ -11,3 +11,5 @@ v0.3 本机通过 Rust 10 项测试、严格 Clippy、前端构建和 Node 词�
 配置服务关闭后实测托盘工作集峰值 18.7 MiB、私有内存 2.1 MiB，单核平均 CPU 0.20%。官方 Zed 磁盘哈希保持原样。未测试的官方新版、全部控件和跨平台不视为已通过；显示引擎的输入/滚动帧耗时尚未测量。
 
 GitHub Windows 测试曾因测试脚本默认 cp1252 读取中文 JSON 失败，已改为显式 UTF-8，并关闭 Python UTF-8 模式复测通过。CI 状态以对应提交的 Actions 为准。
+
+后续 Windows CI 在干净的官方 sparse checkout 上出现 Dulwich 状态误判。维护端优先使用已安装 Git 的只读 status 检查，保留无 Git 时的 Dulwich 路线。新增真实 sparse-index、换行规范化、Windows 符号链接占位文件及实际修改拒绝测试；源码仍须干净。公开源码语境检查移至 Rust 构建前，便于尽早发现问题。

@@ -26,6 +26,19 @@ jobs:
         run: |
           rustup toolchain install 1.99.0 --profile minimal --component rustfmt,clippy
           python -m pip install -r requirements-maintenance.txt
+      - name: Checkout safety regression
+        run: python tools/test_repo_bridge.py
+      - name: Prepare pinned public source context
+        shell: bash
+        run: |
+          git -c core.autocrlf=false clone --quiet --depth 1 https://github.com/LI-NA/zed-i18n.git .cache/community
+          git -C .cache/community config core.autocrlf false
+          git -C .cache/community fetch --quiet --depth 1 origin 99301f35d52a33a940ac9a6bfc1d8e5f5decf67b
+          git -C .cache/community checkout --quiet --detach 99301f35d52a33a940ac9a6bfc1d8e5f5decf67b
+          git -c core.autocrlf=false clone --quiet --depth 1 --filter=blob:none --sparse --branch v1.23.2 https://github.com/zed-industries/zed.git .cache/official
+          git -C .cache/official config core.autocrlf false
+          git -C .cache/official sparse-checkout set crates/zed
+          python tools/community_bridge.py prepare --toolkit .cache/community --source-root .cache/official --out .cache/test-job --force-source 'Open Project Settings File'
       - name: Frontend build
         working-directory: web
         run: |
@@ -47,14 +60,6 @@ jobs:
       - name: Pinned public source and community validation
         shell: bash
         run: |
-          git -c core.autocrlf=false clone --quiet --depth 1 https://github.com/LI-NA/zed-i18n.git .cache/community
-          git -C .cache/community config core.autocrlf false
-          git -C .cache/community fetch --quiet --depth 1 origin 99301f35d52a33a940ac9a6bfc1d8e5f5decf67b
-          git -C .cache/community checkout --quiet --detach 99301f35d52a33a940ac9a6bfc1d8e5f5decf67b
-          git -c core.autocrlf=false clone --quiet --depth 1 --filter=blob:none --sparse --branch v1.23.2 https://github.com/zed-industries/zed.git .cache/official
-          git -C .cache/official config core.autocrlf false
-          git -C .cache/official sparse-checkout set crates/zed
-          python tools/community_bridge.py prepare --toolkit .cache/community --source-root .cache/official --out .cache/test-job --force-source 'Open Project Settings File'
           BINARY=$(python -c 'import json,subprocess;from pathlib import Path;print(Path(json.loads(subprocess.check_output(["cargo","metadata","--no-deps","--format-version","1"]))["target_directory"]).as_posix())')/release/zed-zh-addon
           if [ "$RUNNER_OS" = Windows ]; then BINARY="$BINARY.exe"; fi
           python tools/test_ai_pipeline.py --binary "$BINARY" --jobs .cache/test-job/jobs.json --toolkit .cache/community --python python
