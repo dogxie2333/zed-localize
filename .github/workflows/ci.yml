@@ -42,6 +42,15 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then BINARY="$BINARY.exe"; fi
           python tools/test_ai_pipeline.py --binary "$BINARY" --jobs .cache/test-job/jobs.json --toolkit .cache/community --python python
           python -m py_compile tools/community_bridge.py tools/update.py tools/test_ai_pipeline.py tools/test_native.py
+      - name: AI settings integration
+        shell: bash
+        run: |
+          python -m pip install -r runtime/requirements-runtime.txt -r runtime/requirements-ui.txt
+          python tools/test_settings_ui.py
+          python -m py_compile runtime/common.py runtime/supervisor.py runtime/ai_settings.py runtime/update_compat.py
+      - name: Windows pending-launch guard
+        if: runner.os == 'Windows'
+        run: python tools/test_runtime_guard.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: validation-${{ matrix.os }}

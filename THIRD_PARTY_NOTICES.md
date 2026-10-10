@@ -15,4 +15,16 @@
 
 社区 MIT 原文保留在 `licenses/zed-i18n-MIT.txt`，完整 GPL 文本在项目根 `LICENSE`。Release 工作流还从 Cargo metadata 收集第三方依赖许可文本，随二进制一起发布。
 
-Frida 和 pefile 仅用于此前未迁移的本地 Python 原型对照，不是本仓库 Rust 运行工具的依赖，也不包含在 Release 产物中。
+新增显示补丁运行层使用 Frida 官方 Python 绑定；原静态补丁 CLI 仍可独立运行。
+
+| 来源 | 固定版本 | 上游许可 | 使用范围 |
+|---|---|---|---|
+| Frida | 17.23.3 | wxWindows Library Licence 3.1（各子组件按自身许可） | 官方挂接、父子进程事件与 JS 运行时 |
+| pefile / psutil / filelock / json5 | requirements-runtime.txt | MIT / BSD-3-Clause / Unlicense / Apache-2.0 | PE、进程身份、锁与用户 UI 字体设置 |
+| Gradio | 6.30.0 | Apache-2.0 | 按需启动的设置页面组件，不自行实现供应商表单框架 |
+| LiteLLM | 1.104.2 | MIT（仅使用 Python SDK） | 供应商兼容层与连接测试，不使用代理企业功能 |
+| OpenAI Python SDK | requirements-ui.txt | Apache-2.0 | OpenAI 兼容模型列表 |
+| keyring | 25.7.0 | MIT | 用户自行选择保存的 Windows 凭据管理器条目 |
+| notify | 8.2.0 | MIT OR Apache-2.0 | Rust 文件系统事件监控 |
+
+依赖从 PyPI/Cargo 官方注册表安装，发行包不重新打包 Python wheels。固定直接依赖后升级时须重新跑接口 mock 与实际启动测试。支持范围、成本与回滚记录见 `docs/RUNTIME_DECISION.md`。

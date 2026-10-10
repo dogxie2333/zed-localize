@@ -1,0 +1,5 @@
+# GUI and multi-provider transport are mature upstream projects.
+gradio==6.30.0
+litellm==1.104.2
+keyring==25.7.0
+openai==2.54.0

@@ -28,6 +28,18 @@ jobs:
           Copy-Item -Recurse tools,licenses dist/maintainer/
           python tools/collect_licenses.py --toolchain 1.99.0 --output dist/maintainer/dependency-licenses
           Copy-Item -Recurse dist/maintainer/dependency-licenses dist/runtime/
+          New-Item -ItemType Directory -Path dist/display -Force | Out-Null
+          Copy-Item target/release/zed-zh-launcher.exe dist/display/
+          Copy-Item dist/maintainer/zed-zh-maintain.exe dist/display/
+          Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md dist/display/
+          Copy-Item -Recurse runtime,tools,assets,data,docs,licenses dist/display/
+          $displayRoot=(Resolve-Path -LiteralPath dist/display).Path
+          Get-ChildItem -LiteralPath $displayRoot -Filter __pycache__ -Directory -Recurse | ForEach-Object {
+            if(-not $_.FullName.StartsWith($displayRoot+[IO.Path]::DirectorySeparatorChar)){throw 'Cache path escaped package directory'}
+            Remove-Item -LiteralPath $_.FullName -Recurse -Force
+          }
+          Copy-Item -Recurse dist/maintainer/dependency-licenses dist/display/
+          Compress-Archive -Path dist/display/* -DestinationPath dist/zed-zh-display-windows-x64.zip
           Compress-Archive -Path dist/runtime/* -DestinationPath dist/zed-zh-addon-windows-x64.zip
           Compress-Archive -Path dist/maintainer/* -DestinationPath dist/zed-zh-maintain-windows-x64.zip
           Get-FileHash dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content -Encoding utf8 dist/SHA256SUMS.txt
@@ -43,4 +55,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME dist/zed-zh-addon-windows-x64.zip dist/zed-zh-maintain-windows-x64.zip dist/SHA256SUMS.txt --prerelease --title "$env:GITHUB_REF_NAME 实验版" --notes "保留 GPL-3.0，仅做官方 Zed 1.23.2 Windows x64 进程补丁。保守档 215 条，--extended 扩展档 668 条候选。维护版支持 DeepSeek 更新时批量翻译和语境缓存。候选数不代表全界面视觉验收；不包含自编译 Zed。配置与限制见中文 README。"
+          gh release create $env:GITHUB_REF_NAME dist/zed-zh-addon-windows-x64.zip dist/zed-zh-maintain-windows-x64.zip dist/zed-zh-display-windows-x64.zip dist/SHA256SUMS.txt --prerelease --title "$env:GITHUB_REF_NAME 实验版" --notes "保留 GPL-3.0，官方包补丁模式。新增显示补丁、Rust GUI 启动入口、快捷方式修复及 Gradio/LiteLLM AI 设置页。显示模式需安装 Python 依赖，仍只批准指定 Zed 1.23.2 Windows x64 哈希；新版本未适配时打开英文。配置与限制见中文 README。"

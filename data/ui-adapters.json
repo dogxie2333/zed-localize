@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "adapters": [
+    {
+      "sha256": "d7afb758b045958838d843b95dd28c41554efd810c0f15012cf0069ff8046781",
+      "version": "1.23.2",
+      "ui_caller_rva": "0x5c09ef0",
+      "default_ui_fonts": ["IBM Plex Sans"],
+      "verified": true
+    }
+  ]
+}
