@@ -1,0 +1,17 @@
+# Only maintenance commands read this file. Launching Zed performs no HTTP.
+# Copy to config.local.toml (ignored by Git); never put an API key here.
+api_base = "https://api.openai.com/v1"
+model = "replace-with-your-provider-model"
+api_key_env = "ZED_I18N_API_KEY"
+timeout_seconds = 90
+max_batches = 20
+max_output_tokens = 4096
+strict_schema = false
+# Enable only if the selected provider supports this request field.
+provider_prompt_cache_key = false
+# Test-only opt-in, restricted to localhost/loopback addresses.
+allow_local_http = false
+# For providers that accept max_tokens rather than max_completion_tokens.
+use_legacy_max_tokens = false
+# If your compatible provider lacks JSON mode, rely on the prompt + validator.
+json_mode = true

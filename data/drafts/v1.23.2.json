@@ -1,0 +1,13 @@
+{
+  "latest_tag": "v1.23.2",
+  "source_commit": "c0199504b9cce79bc27524950022ed701bc3ebd5",
+  "community_commit": "99301f35d52a33a940ac9a6bfc1d8e5f5decf67b",
+  "new_text_count": 0,
+  "translation_status": "community-complete",
+  "translations": {},
+  "status": "draft",
+  "batch_requests": 0,
+  "local_cache_hits": 0,
+  "review_required": [],
+  "runtime_compatibility_approved": false
+}

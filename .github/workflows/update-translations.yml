@@ -1,0 +1,94 @@
+name: Update translations
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: translation-update
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+      - name: Check public upstream metadata
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZED_I18N_API_KEY: ${{ secrets.AI_API_KEY }}
+          ZED_I18N_MODEL: ${{ vars.AI_MODEL }}
+        run: |
+          mkdir -p reports
+          python tools/update.py --check-only > reports/update-check.json
+          python - <<'PY'
+          import json,os
+          result=json.load(open('reports/update-check.json'))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('needed='+str(result['work_needed']).lower()+'\n')
+          print('Upstream work needed:', result['work_needed'])
+          PY
+      - name: Restore public translation cache
+        if: steps.check.outputs.needed == 'true'
+        id: cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/translations.redb
+          key: translation-cache-v1-${{ github.run_id }}
+          restore-keys: translation-cache-v1-
+      - name: Build maintenance tool
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          rustup toolchain install 1.99.0 --profile minimal
+          cargo +1.99.0 build --release --locked --features ai
+          python -m pip install 'tree-sitter>=0.25,<0.26' 'tree-sitter-rust>=0.24,<0.25'
+      - name: Prepare missing public UI text and translate drafts
+        if: steps.check.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZED_I18N_API_KEY: ${{ secrets.AI_API_KEY }}
+          ZED_I18N_MODEL: ${{ vars.AI_MODEL }}
+          ZED_I18N_API_BASE: ${{ vars.AI_API_BASE }}
+          ZED_I18N_LEGACY_MAX_TOKENS: ${{ vars.AI_LEGACY_MAX_TOKENS }}
+        run: |
+          python - <<'PY'
+          import json,os,pathlib,subprocess,sys
+          root=pathlib.Path('.cache')
+          root.mkdir(exist_ok=True)
+          config=root/'ci-api.toml'
+          # Only nonsecret configuration is written. The key stays in env.
+          model=os.environ.get('ZED_I18N_MODEL','')
+          base=os.environ.get('ZED_I18N_API_BASE') or 'https://api.openai.com/v1'
+          legacy=os.environ.get('ZED_I18N_LEGACY_MAX_TOKENS','').lower()=='true'
+          config.write_text('api_base='+json.dumps(base)+'\nmodel='+json.dumps(model)+'\nuse_legacy_max_tokens='+str(legacy).lower()+'\n',encoding='utf-8')
+          command=[sys.executable,'tools/update.py']
+          if os.environ.get('ZED_I18N_API_KEY') and model:
+              command += ['--maintainer','target/release/zed-zh-addon','--config',str(config)]
+          subprocess.run(command,check=True)
+          PY
+      - name: Save validated public translation cache
+        if: always() && steps.check.outputs.needed == 'true' && hashFiles('.cache/translations.redb') != ''
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .cache/translations.redb
+          key: translation-cache-v1-${{ github.run_id }}
+      - name: Open review draft
+        if: steps.check.outputs.needed == 'true'
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          branch: automation/translation-drafts
+          commit-message: 'chore: update public upstream translation drafts'
+          title: '更新上游中文翻译草稿'
+          body: |
+            上游版本或社区数据有变化。本 PR 仅包含公开界面文案的已校验翻译草稿和来源状态。
+
+            请检查新增文案语境、术语及待审项。AI 没有批准任何新的官方二进制哈希，本 PR 不扩大运行时兼容性。
+          draft: true
+          add-paths: |
+            data/upstream-state.json
+            data/drafts/*.json

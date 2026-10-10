@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "targets": [{
+    "sha256": "d7afb758b045958838d843b95dd28c41554efd810c0f15012cf0069ff8046781",
+    "version": "1.23.2",
+    "source_commit": "c0199504b9cce79bc27524950022ed701bc3ebd5",
+    "status": "experimental",
+    "architecture": "x86_64"
+  }]
+}

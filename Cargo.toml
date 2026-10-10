@@ -1,0 +1,40 @@
+[package]
+name = "zed-zh-addon"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "GPL-3.0-only"
+description = "Experimental localization companion for official Zed, with offline update-time translation"
+repository = "https://github.com/dogxie2333/zed-zh-addon"
+
+[features]
+default = []
+ai = ["dep:async-openai", "dep:tokio", "dep:reqwest", "dep:redb", "dep:toml", "dep:tempfile"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+hex = "0.4"
+goblin = "0.10"
+memmap2 = "0.9"
+aho-corasick = "1"
+async-openai = { version = "=0.42.2", default-features = false, features = ["chat-completion", "native-tls"], optional = true }
+tokio = { version = "1", features = ["rt", "time", "net"], optional = true }
+reqwest = { version = "0.13", default-features = false, features = ["native-tls", "json"], optional = true }
+redb = { version = "=4.3.0", optional = true }
+toml = { version = "0.9", optional = true }
+tempfile = { version = "3", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_System_Memory", "Win32_System_ProcessStatus", "Win32_System_SystemInformation"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

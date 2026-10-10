@@ -1,0 +1,12 @@
+/target/
+/.cache/
+/.venv/
+/reports/
+/profiles/
+*.redb
+*.redb.lock
+__pycache__/
+*.pyc
+.env
+.env.*
+config.local.toml
