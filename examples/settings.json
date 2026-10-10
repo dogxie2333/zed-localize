@@ -1,0 +1,12 @@
+{
+  "zed_exe": "C:\\Program Files\\Zed\\Zed.exe",
+  "startup_mode": "manual",
+  "replace_shortcuts": true,
+  "translation_language": "zh-CN",
+  "ui_language": "zh-CN",
+  "provider": "compatible",
+  "api_base": "https://api.openai.com/v1",
+  "model": "",
+  "auto_translate": false,
+  "translation_languages": ["zh-CN", "zh-TW"]
+}

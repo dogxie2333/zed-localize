@@ -20,4 +20,4 @@ python packaging/make_payload.py
 if($LASTEXITCODE -ne 0){throw 'Native payload packaging failed'}
 python packaging/append_payload.py
 if($LASTEXITCODE -ne 0){throw 'Single-file assembly failed'}
-Get-FileHash -LiteralPath dist/Zed-Zh-Addon.exe
+Get-FileHash -LiteralPath dist/Zed-Localize.exe

@@ -31,6 +31,7 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run build
+          node ../tools/test_display_locales.js
       - name: Rust checks
         run: |
           cargo +1.99.0 fmt --all --check
@@ -46,10 +47,12 @@ jobs:
       - name: Pinned public source and community validation
         shell: bash
         run: |
-          git clone --quiet --depth 1 https://github.com/LI-NA/zed-i18n.git .cache/community
+          git -c core.autocrlf=false clone --quiet --depth 1 https://github.com/LI-NA/zed-i18n.git .cache/community
+          git -C .cache/community config core.autocrlf false
           git -C .cache/community fetch --quiet --depth 1 origin 99301f35d52a33a940ac9a6bfc1d8e5f5decf67b
           git -C .cache/community checkout --quiet --detach 99301f35d52a33a940ac9a6bfc1d8e5f5decf67b
-          git clone --quiet --depth 1 --filter=blob:none --sparse --branch v1.23.2 https://github.com/zed-industries/zed.git .cache/official
+          git -c core.autocrlf=false clone --quiet --depth 1 --filter=blob:none --sparse --branch v1.23.2 https://github.com/zed-industries/zed.git .cache/official
+          git -C .cache/official config core.autocrlf false
           git -C .cache/official sparse-checkout set crates/zed
           python tools/community_bridge.py prepare --toolkit .cache/community --source-root .cache/official --out .cache/test-job --force-source 'Open Project Settings File'
           BINARY=$(python -c 'import json,subprocess;from pathlib import Path;print(Path(json.loads(subprocess.check_output(["cargo","metadata","--no-deps","--format-version","1"]))["target_directory"]).as_posix())')/release/zed-zh-addon

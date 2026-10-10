@@ -284,7 +284,7 @@ pub async fn translate_jobs(
     api_key: impl Fn() -> Result<String> + Send,
 ) -> Result<Value> {
     ensure!(
-        jobs.schema == 1 && jobs.locale == "zh-CN",
+        jobs.schema == 1 && crate::localization::supported(&jobs.locale) && jobs.locale != "en",
         "Unsupported translation job"
     );
     config.validate()?;

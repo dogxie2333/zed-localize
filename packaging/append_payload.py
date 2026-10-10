@@ -11,9 +11,9 @@ root=Path(__file__).resolve().parents[1]
 build=Path(os.environ.get('ZED_ZH_BUILD_DIR',root.parent/'.build-cache/zed-zh-addon/package'))
 payload=build/'portable-payload.zip'
 target=Path(json.loads(subprocess.check_output(['cargo','metadata','--no-deps','--format-version','1'],cwd=root,text=True,encoding='utf-8'))['target_directory'])
-output=root/'dist/Zed-Zh-Addon.exe'
+output=root/'dist/Zed-Localize.exe'
 output.parent.mkdir(exist_ok=True)
-temporary=output.with_name(f'Zed-Zh-Addon.{os.getpid()}.building.exe')
+temporary=output.with_name(f'Zed-Localize.{os.getpid()}.building.exe')
 shutil.copyfile(target/'release/zed-zh-launcher.exe',temporary)
 digest=hashlib.sha256()
 with payload.open('rb') as source,temporary.open('ab') as target:

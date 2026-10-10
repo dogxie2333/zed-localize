@@ -324,7 +324,7 @@ mod desktop {
             return ("监控异常：请打开配置页面", "error");
         }
         if settings(root)["watch_enabled"].as_bool() == Some(false) {
-            return ("已暂停自动汉化", "paused");
+            return ("已暂停自动本地化", "paused");
         }
         let status = fs::read(state(root).join("runtime-status.json"))
             .ok()
@@ -333,8 +333,10 @@ mod desktop {
             status.filter(|item| now() - item["updated"].as_f64().unwrap_or_default() < 15.0)
             && let Some(sessions) = status["sessions"].as_array()
         {
-            if sessions.iter().any(|item| item["mode"] == "chinese") {
-                return ("汉化已启用：Zed 运行中", "active");
+            if sessions.iter().any(|item| {
+                ["chinese", "localized", "english"].contains(&item["mode"].as_str().unwrap_or(""))
+            }) {
+                return ("本地化已启用：Zed 运行中", "active");
             }
             if sessions
                 .iter()
@@ -377,9 +379,9 @@ mod desktop {
         let menu = Menu::new();
         let status_item = MenuItem::new("补丁正在启动", false, None);
         let configure = MenuItem::new("打开配置网页…", true, None);
-        let close_settings = MenuItem::new("关闭配置服务（保留汉化）", true, None);
-        let launch = MenuItem::new("启动中文 Zed", true, None);
-        let pause = MenuItem::new("暂停自动汉化", true, None);
+        let close_settings = MenuItem::new("关闭配置服务（保留本地化）", true, None);
+        let launch = MenuItem::new("启动 Zed", true, None);
+        let pause = MenuItem::new("暂停自动本地化", true, None);
         let exit = MenuItem::new("退出补丁（不关闭 Zed）", true, None);
         menu.append_items(&[
             &status_item,
@@ -393,7 +395,7 @@ mod desktop {
         ])?;
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(menu.clone()))
-            .with_tooltip("Zed 汉化补丁：正在启动")
+            .with_tooltip("Zed 本地化补丁：正在启动")
             .with_icon(icon("waiting", taskbar_dark())?)
             .build()?;
         let stop = Arc::new(AtomicBool::new(false));
@@ -471,14 +473,14 @@ mod desktop {
                 let dark = taskbar_dark();
                 let display_key = format!("{text}:{dark}");
                 if displayed != display_key {
-                    tray.set_tooltip(Some(format!("Zed 汉化补丁：{text}")))?;
+                    tray.set_tooltip(Some(format!("Zed 本地化补丁：{text}")))?;
                     tray.set_icon(Some(icon(mark, dark)?))?;
                     status_item.set_text(text);
                     pause.set_text(
                         if settings(root)["watch_enabled"].as_bool() == Some(false) {
-                            "恢复自动汉化"
+                            "恢复自动本地化"
                         } else {
-                            "暂停自动汉化"
+                            "暂停自动本地化"
                         },
                     );
                     displayed = display_key;
@@ -633,7 +635,7 @@ mod desktop {
             .build()?;
         let result=runtime.block_on(async {
             let client=reqwest::Client::builder().timeout(Duration::from_secs(20)).user_agent("zed-zh-addon-native-maintenance").build()?;
-            let data:Value=client.get("https://raw.githubusercontent.com/dogxie2333/zed-zh-addon/main/data/ui-adapters.json").send().await?.error_for_status()?.json().await?;
+            let data:Value=client.get("https://raw.githubusercontent.com/dogxie2333/zed-localize/main/data/ui-adapters.json").send().await?.error_for_status()?.json().await?;
             anyhow::ensure!(data["schema"]==1,"Unexpected adapter schema");
             for adapter in data["adapters"].as_array().context("Missing adapter list")? {
                 let hash=adapter["sha256"].as_str().context("Invalid adapter hash")?;
@@ -672,7 +674,7 @@ fn main() {
                     .encode_utf16()
                     .chain(Some(0))
                     .collect();
-            let title: Vec<u16> = "Zed 汉化补丁".encode_utf16().chain(Some(0)).collect();
+            let title: Vec<u16> = "Zed 本地化补丁".encode_utf16().chain(Some(0)).collect();
             unsafe {
                 MessageBoxW(
                     std::ptr::null_mut(),

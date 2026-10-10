@@ -8,12 +8,14 @@ target=Path(json.loads(subprocess.check_output(['cargo','metadata','--no-deps','
 files={'runtime/install-startup.ps1':root/'runtime/install-startup.ps1','zed-zh-settings.exe':target/'release/zed-zh-settings.exe','assets/catalog.json':root/'assets/catalog.json','assets/LICENSE.md':root/'assets/LICENSE.md'}
 for name in ('ui_overlay.js','gadget_lifecycle.js','test_gadget_restart.js'):
     files['tools/'+name]=root/'tools'/name
+for source in (root/'assets/locales').glob('*.json'):
+    files[source.relative_to(root).as_posix()]=source
 for folder in ('data','docs','licenses'):
     for source in (root/folder).rglob('*'):
         if source.is_file() and (folder=='licenses' or source.suffix in ('.json','.md','.txt')):files[source.relative_to(root).as_posix()]=source
 for source in (root/'web/dist').rglob('*'):
     if source.is_file():files[source.relative_to(root).as_posix()]=source
-for name in ('LICENSE','README.md','ACKNOWLEDGEMENTS.md','THIRD_PARTY_NOTICES.md'):files[name]=root/name
+for name in ('LICENSE','README.md','README.en.md','README.zh-TW.md','ACKNOWLEDGEMENTS.md','THIRD_PARTY_NOTICES.md'):files[name]=root/name
 vendor=Path(os.environ.get('ZED_ZH_VENDOR_DIR',root/'local/vendor'))
 for name in ('frida-gadget-17.23.3.dll','frida-gadget-origin.json'):files['vendor/'+name]=vendor/name
 origin=json.loads((vendor/'frida-gadget-origin.json').read_text())

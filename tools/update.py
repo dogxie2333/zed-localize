@@ -98,6 +98,15 @@ def main():
     # reviewed job envelope; provider credentials and replies never enter it.
     if STATE_ROOT == ROOT:
         write(ROOT / 'data/translation-jobs.json', jobs)
+        write(ROOT / 'data/translation-jobs/zh-CN.json', jobs)
+        from export_locales import LANGUAGES
+        for locale in LANGUAGES:
+            if locale == 'zh-CN': continue
+            locale_out = prepared / locale
+            run(sys.executable, ROOT / 'tools/community_bridge.py', 'prepare',
+                '--toolkit', toolkit, '--source-root', source, '--out', locale_out,
+                '--data-root', data_root, '--locale', locale, *manifest_arg)
+            write(ROOT / f'data/translation-jobs/{locale}.json', json.loads((locale_out/'jobs.json').read_text(encoding='utf-8')))
     missing = sum(len(batch["entries"]) for batch in jobs["batches"])
     translated = {"translations": {}, "status": "draft", "batch_requests": 0, "local_cache_hits": 0,
                   "review_required": jobs["review_required"], "runtime_compatibility_approved": False}

@@ -4,12 +4,27 @@ let dictionary;
 let fonts;
 let marker;
 const protectedNames = new Set();
+let publicKeys = new Set();
 const hooked = new Set();
 const hits = new Map();
 const denied = new Map();
 const fontFunctions = new Map();
 let enabled = true;
 let attachExisting = false;
+let currentLocale = 'zh-CN';
+let catalogs = {};
+function selectLocale(locale) {
+    if (!locale || locale === currentLocale) return;
+    if (locale !== 'en' && !Object.prototype.hasOwnProperty.call(catalogs,locale)) return;
+    const data = locale === 'en' ? {messages:{}} : JSON.parse(File.readAllText(catalogs[locale]));
+    if (locale !== 'en' && (data.schema !== 1 || data.locale !== locale)) return;
+    const entries = Object.entries(data.messages);
+    if (!entries.every(([source,text]) => typeof text === 'string' && text.length > 0 &&
+        text.length <= source.length && !/[{}\n\r\t`*_\[\]<>\x00]/.test(source+text))) return;
+    dictionary = new Map(entries);
+    currentLocale = locale;
+    hits.clear();
+}
 function fontName(format) {
     const table = format.readPointer();
     const key=table.toString();
@@ -36,7 +51,7 @@ function protectFiles(module) {
             // dictionary keys that happen to be used as a file basename.
             const path=args[0].readUtf16String();
             const name=path.split(/[\\/]/).pop();
-            if (dictionary.has(name)) protectedNames.add(name);
+            if (publicKeys.has(name)) protectedNames.add(name);
         } catch (_) {}
     }});
 }
@@ -81,6 +96,9 @@ rpc.exports = {
     configure(config) {
         if (config.image_size!==Process.mainModule.size) throw new Error('Unexpected image size');
         dictionary=new Map(Object.entries(config.messages));
+        currentLocale=config.locale||'zh-CN';
+        catalogs=config.catalogs||{};
+        publicKeys=new Set(config.public_sources||Object.keys(config.messages));
         fonts=new Set(config.ui_fonts);
         marker=config.ui_caller_rva;
         attachExisting=config.attach_existing===true;

@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "upstream_commit": "99301f35d52a33a940ac9a6bfc1d8e5f5decf67b",
+  "languages": [
+    {
+      "id": "en",
+      "name": "English",
+      "entries": 0,
+      "eligible": 0
+    },
+    {
+      "id": "zh-CN",
+      "name": "简体中文",
+      "entries": 7430,
+      "eligible": 6499
+    },
+    {
+      "id": "zh-TW",
+      "name": "繁體中文",
+      "entries": 7430,
+      "eligible": 6494
+    },
+    {
+      "id": "ja-JP",
+      "name": "日本語",
+      "entries": 7430,
+      "eligible": 6400
+    },
+    {
+      "id": "ko-KR",
+      "name": "한국어",
+      "entries": 7430,
+      "eligible": 6422
+    },
+    {
+      "id": "de-DE",
+      "name": "Deutsch",
+      "entries": 7430,
+      "eligible": 771
+    },
+    {
+      "id": "fr-FR",
+      "name": "Français",
+      "entries": 7430,
+      "eligible": 552
+    },
+    {
+      "id": "es-ES",
+      "name": "Español",
+      "entries": 7430,
+      "eligible": 632
+    },
+    {
+      "id": "it-IT",
+      "name": "Italiano",
+      "entries": 7430,
+      "eligible": 810
+    },
+    {
+      "id": "pt-BR",
+      "name": "Português (Brasil)",
+      "entries": 7430,
+      "eligible": 1276
+    },
+    {
+      "id": "ru-RU",
+      "name": "Русский",
+      "entries": 7430,
+      "eligible": 1515
+    },
+    {
+      "id": "pl-PL",
+      "name": "Polski",
+      "entries": 7430,
+      "eligible": 1573
+    },
+    {
+      "id": "cs-CZ",
+      "name": "Čeština",
+      "entries": 7430,
+      "eligible": 2593
+    },
+    {
+      "id": "tr-TR",
+      "name": "Türkçe",
+      "entries": 7430,
+      "eligible": 2214
+    }
+  ]
+}

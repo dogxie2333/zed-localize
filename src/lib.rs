@@ -3,6 +3,7 @@ pub mod catalog;
 pub mod configuration;
 #[cfg(windows)]
 pub mod gadget_runtime;
+pub mod localization;
 #[cfg(all(windows, feature = "portable"))]
 pub mod portable;
 pub mod runtime_paths;

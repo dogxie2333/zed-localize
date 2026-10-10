@@ -127,6 +127,7 @@ pub async fn serve(root: PathBuf, state: PathBuf, launcher: PathBuf, open: bool)
         .route("/leave", post(leave))
         .route("/close", post(close))
         .route("/language", post(language))
+        .route("/translation-language", post(translation_language))
         .route("/browse", post(browse))
         .route("/inspect", post(inspect))
         .route("/startup", post(startup))
@@ -223,6 +224,8 @@ async fn config(State(app): State<App>) -> Json<Value> {
         "model",
         "auto_translate",
         "ui_language",
+        "translation_language",
+        "translation_languages",
     ] {
         safe[field] = current[field].clone();
     }
@@ -231,7 +234,9 @@ async fn config(State(app): State<App>) -> Json<Value> {
         .unwrap_or(Path::new("D:\\Zed"))
         .display()
         .to_string();
-    Json(json!({"config":safe,"folder":folder}))
+    safe["translation_language"] = json!(crate::localization::selected(&app.state));
+    let languages = read(&app.root.join("data/locales.json")).unwrap_or(json!({"languages":[]}));
+    Json(json!({"config":safe,"folder":folder,"languages":languages["languages"]}))
 }
 async fn status(State(app): State<App>) -> Json<Value> {
     Json(
@@ -265,6 +270,28 @@ async fn language(State(app): State<App>, Json(value): Json<Value>) -> Json<Valu
     } else {
         reply("failed")
     }
+}
+async fn translation_language(State(app): State<App>, Json(value): Json<Value>) -> Json<Value> {
+    let Some(locale) = value["language"]
+        .as_str()
+        .filter(|locale| crate::localization::supported(locale))
+    else {
+        return reply("failed");
+    };
+    if crate::localization::messages(&app.root, locale).is_err() {
+        return reply("failed");
+    }
+    let previous = settings(&app.state);
+    let mut current = previous.clone();
+    current["translation_language"] = json!(locale);
+    if write(&app.state.join("settings.json"), &current).is_err() {
+        return reply("failed");
+    }
+    if crate::gadget_runtime::enable(&app.root, current["watch_enabled"] != false).is_err() {
+        let _ = write(&app.state.join("settings.json"), &previous);
+        return reply("failed");
+    }
+    Json(json!({"code":"translationLanguageSaved","language":locale}))
 }
 async fn browse(Json(value): Json<Value>) -> Json<Value> {
     let folder = value["folder"].as_str().unwrap_or("").to_owned();
@@ -394,9 +421,18 @@ struct AiInput {
     key: String,
     store_key: bool,
     auto_translate: bool,
+    translation_languages: Vec<String>,
 }
 impl AiInput {
     fn validate(&self, model: bool) -> Result<()> {
+        ensure!(
+            self.translation_languages.len() <= crate::localization::LOCALES.len()
+                && self
+                    .translation_languages
+                    .iter()
+                    .all(|locale| crate::localization::supported(locale)),
+            "Invalid translation languages"
+        );
         ensure!(
             ["deepseek", "glm", "zai", "compatible"].contains(&self.provider.as_str()),
             "Unknown provider"
@@ -506,6 +542,7 @@ async fn save_ai(State(app): State<App>, Json(input): Json<AiInput>) -> Json<Val
     current["api_base"] = json!(input.api_base.trim().trim_end_matches('/'));
     current["model"] = json!(input.model.trim());
     current["auto_translate"] = json!(input.auto_translate);
+    current["translation_languages"] = json!(input.translation_languages);
     if write(&app.state.join("settings.json"), &current).is_ok() {
         reply("saved")
     } else {
@@ -556,20 +593,40 @@ async fn test(Json(input): Json<AiInput>) -> Json<Value> {
         reply("failed")
     }
 }
-async fn translation(root: &Path, state: &Path, input: &AiInput) -> Result<Value> {
+async fn translation_for_locale(
+    root: &Path,
+    state: &Path,
+    input: &AiInput,
+    locale: &str,
+) -> Result<Value> {
+    if locale == "en" {
+        return Ok(json!({"code":"nothingPending"}));
+    }
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
         .user_agent("zed-zh-addon-native")
         .build()?;
+    let jobs_path = root.join(format!("data/translation-jobs/{locale}.json"));
+    let jobs_path = if locale == "zh-CN" && !jobs_path.is_file() {
+        root.join("data/translation-jobs.json")
+    } else {
+        jobs_path
+    };
     let jobs: crate::translation::Jobs = if std::env::var("ZED_ZH_OFFLINE_JOBS").as_deref()
         == Ok("1")
     {
-        serde_json::from_slice(&fs::read(root.join("data/translation-jobs.json"))?)?
+        serde_json::from_slice(&fs::read(&jobs_path)?)?
     } else {
-        match client.get("https://raw.githubusercontent.com/dogxie2333/zed-zh-addon/main/data/translation-jobs.json").send().await{Ok(response) if response.status().is_success()=>response.json().await?,_=>serde_json::from_slice(&fs::read(root.join("data/translation-jobs.json"))?)?}
+        let url = format!(
+            "https://raw.githubusercontent.com/dogxie2333/zed-localize/main/data/translation-jobs/{locale}.json"
+        );
+        match client.get(url).send().await {
+            Ok(response) if response.status().is_success() => response.json().await?,
+            _ => serde_json::from_slice(&fs::read(&jobs_path)?)?,
+        }
     };
     ensure!(
-        jobs.schema == 1 && jobs.locale == "zh-CN",
+        jobs.schema == 1 && jobs.locale == locale,
         "Invalid public job"
     );
     if jobs.batches.is_empty() {
@@ -597,9 +654,39 @@ async fn translation(root: &Path, state: &Path, input: &AiInput) -> Result<Value
     )
     .await?;
     fs::create_dir_all(state.join("drafts"))?;
+    write(&state.join(format!("drafts/{locale}.json")), &result)?;
     write(&state.join("drafts/native.json"), &result)?;
     Ok(
         json!({"code":"translated","count":result["translations"].as_object().map_or(0,|v|v.len()),"cache_hits":result["local_cache_hits"],"runtime_compatibility_approved":false}),
+    )
+}
+async fn translation(root: &Path, state: &Path, input: &AiInput) -> Result<Value> {
+    let languages = if input.translation_languages.is_empty() {
+        vec![crate::localization::selected(state)]
+    } else {
+        input.translation_languages.clone()
+    };
+    ensure!(
+        languages.len() <= crate::localization::LOCALES.len()
+            && languages
+                .iter()
+                .all(|locale| crate::localization::supported(locale)),
+        "Invalid languages"
+    );
+    let mut results = serde_json::Map::new();
+    let mut count = 0u64;
+    let mut hits = 0u64;
+    for locale in languages {
+        if results.contains_key(&locale) {
+            continue;
+        }
+        let result = translation_for_locale(root, state, input, &locale).await?;
+        count += result["count"].as_u64().unwrap_or_default();
+        hits += result["cache_hits"].as_u64().unwrap_or_default();
+        results.insert(locale, result);
+    }
+    Ok(
+        json!({"code":if count > 0 {"translated"} else {"nothingPending"},"count":count,"cache_hits":hits,"languages":results,"runtime_compatibility_approved":false}),
     )
 }
 async fn translate(State(app): State<App>, Json(input): Json<AiInput>) -> Json<Value> {
@@ -626,6 +713,15 @@ pub async fn automatic(root: &Path, state: &Path) -> Result<()> {
         provider: cfg["provider"].as_str().unwrap_or("compatible").into(),
         api_base: cfg["api_base"].as_str().unwrap_or("").into(),
         model: cfg["model"].as_str().unwrap_or("").into(),
+        translation_languages: cfg["translation_languages"]
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default(),
         ..Default::default()
     };
     let value = translation(root, state, &input).await?;

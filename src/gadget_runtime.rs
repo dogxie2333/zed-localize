@@ -1,8 +1,5 @@
 //! Native display glue: mature DLL injection crate + official Frida Gadget.
-use crate::{
-    catalog::{embedded_catalog, hash_file},
-    windows_runtime::Process,
-};
+use crate::{catalog::hash_file, windows_runtime::Process};
 use anyhow::{Context, Result, ensure};
 use dll_syringe::{Syringe, process::OwnedProcess};
 use serde_json::{Value, json};
@@ -41,20 +38,22 @@ pub fn config(root: &Path, exe: &Path, profile: Option<&Path>) -> Result<Option<
     else {
         return Ok(None);
     };
-    let catalog = embedded_catalog()?;
-    let messages: serde_json::Map<String, Value> = catalog
+    let locale = crate::localization::selected(&state);
+    let messages = crate::localization::messages(root, &locale)?;
+    let public_sources: Vec<String> = crate::catalog::embedded_catalog()?
         .messages
+        .into_iter()
+        .map(|message| message.source)
+        .collect();
+    let catalogs: serde_json::Map<String, Value> = crate::localization::LOCALES
         .iter()
-        .filter(|item| {
-            item.source != item.translation
-                && !item
-                    .source
-                    .chars()
-                    .chain(item.translation.chars())
-                    .any(|c| "{}\n\r\t`*_[]<>".contains(c))
-                && item.translation.encode_utf16().count() <= item.source.encode_utf16().count()
+        .filter(|locale| **locale != "en")
+        .map(|locale| {
+            (
+                (*locale).into(),
+                json!(root.join(format!("assets/locales/{locale}.json"))),
+            )
         })
-        .map(|item| (item.source.clone(), json!(item.translation)))
         .collect();
     let bytes = fs::read(exe)?;
     let pe = goblin::pe::PE::parse(&bytes)?;
@@ -81,7 +80,7 @@ pub fn config(root: &Path, exe: &Path, profile: Option<&Path>) -> Result<Option<
         fonts.push(json!(font));
     }
     Ok(Some(
-        json!({"messages":messages,"ui_fonts":fonts,"ui_caller_rva":adapter["ui_caller_rva"],"image_size":size,"protected_names":[],"sha256":digest}),
+        json!({"messages":messages,"locale":locale,"catalogs":catalogs,"public_sources":public_sources,"ui_fonts":fonts,"ui_caller_rva":adapter["ui_caller_rva"],"image_size":size,"protected_names":[],"sha256":digest}),
     ))
 }
 pub fn state_dir(root: &Path) -> PathBuf {
@@ -141,8 +140,8 @@ rpc.exports.init=function(stage,parameters){
     const temporaryPath=Memory.allocUtf16String(temporary);
     const statsPath=Memory.allocUtf16String(parameters.stats_path);
     const record=()=>{
-      try {const control=JSON.parse(File.readAllText(parameters.control_path));enabled=control.enabled!==false;}catch(_){}
-      const snapshot={pid:Process.id,mode:enabled?'chinese':'paused',dictionary_count:dictionary.size,translated_distinct:hits.size,updated:Date.now()/1000};
+      try {const control=JSON.parse(File.readAllText(parameters.control_path));selectLocale(control.locale);enabled=control.enabled!==false;}catch(_){}
+      const snapshot={pid:Process.id,mode:!enabled?'paused':currentLocale==='en'?'english':currentLocale==='zh-CN'?'chinese':'localized',locale:currentLocale,dictionary_count:dictionary.size,translated_distinct:hits.size,updated:Date.now()/1000};
       const file=new File(temporary,'w');file.write(JSON.stringify(snapshot));file.flush();file.close();
       move(temporaryPath,statsPath,1);
     };
@@ -246,8 +245,47 @@ pub fn test(root: &Path, exe: &Path) -> Result<Value> {
                     .all(|item| item["translated_distinct"].as_u64().unwrap_or_default() > 0),
             "Parent/child Chinese rendering was not observed"
         );
+        let mut language_switches = Vec::new();
+        let control = state_dir(root).join("gadget-control.json");
+        let original_locale = crate::localization::selected(&state_dir(root));
+        let switched = (|| -> Result<()> {
+            for locale in ["en", "zh-TW", "ja-JP"] {
+                let expected = crate::localization::messages(root, locale)?
+                    .as_object()
+                    .context("Missing dictionary")?
+                    .len();
+                let temporary = control.with_extension("test.tmp");
+                fs::write(
+                    &temporary,
+                    serde_json::to_vec(&json!({"enabled":true,"locale":locale}))?,
+                )?;
+                fs::rename(temporary, &control)?;
+                let mut observed = false;
+                for _ in 0..12 {
+                    std::thread::sleep(std::time::Duration::from_millis(250));
+                    if let Some(snapshot) = snapshots(root, exe).into_iter().find(|item| {
+                        item["pid"].as_u64() == Some(child)
+                            && item["locale"] == locale
+                            && item["dictionary_count"].as_u64() == Some(expected as u64)
+                    }) {
+                        language_switches.push(snapshot);
+                        observed = true;
+                        break;
+                    }
+                }
+                ensure!(observed, "Live language dictionary switch was not observed");
+            }
+            Ok(())
+        })();
+        let temporary = control.with_extension("test.tmp");
+        fs::write(
+            &temporary,
+            serde_json::to_vec(&json!({"enabled":true,"locale":original_locale}))?,
+        )?;
+        fs::rename(temporary, &control)?;
+        switched?;
         Ok(
-            json!({"passed":true,"snapshots":reports,"python_runtime":false,"self_restart_via_launcher":true}),
+            json!({"passed":true,"snapshots":reports,"language_switches":language_switches,"python_runtime":false,"self_restart_via_launcher":true}),
         )
     })();
     if let (Ok(owner_bytes), Ok(launch_bytes)) = (
@@ -275,7 +313,11 @@ pub fn enable(root: &Path, enabled: bool) -> Result<()> {
     let folder = state_dir(root);
     fs::create_dir_all(&folder)?;
     let temporary = folder.join("gadget-control.tmp");
-    fs::write(&temporary, serde_json::to_vec(&json!({"enabled":enabled}))?)?;
+    let locale = crate::localization::selected(&folder);
+    fs::write(
+        &temporary,
+        serde_json::to_vec(&json!({"enabled":enabled,"locale":locale}))?,
+    )?;
     fs::rename(temporary, folder.join("gadget-control.json"))?;
     Ok(())
 }
