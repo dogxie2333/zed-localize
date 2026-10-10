@@ -19,6 +19,8 @@
 
 CI 会运行 Rust 测试、社区桥接测试和本地 API mock，并打包 Windows 运行版/维护版；CI 状态应以 GitHub 实际运行结果为准。本记录不能替代 CI 或新版本视觉验收。
 
+首轮 GitHub CI 已在 Windows 和 Ubuntu 成功完成；首轮手动 Update translations 工作流成功，确认当前上游没有变化，不需要 AI 请求。语境组行号 ID 与批次 target 标记另有 Rust 回归测试，避免社区分组导致无意义缓存失效。
+
 ## 重现
 
 ```powershell

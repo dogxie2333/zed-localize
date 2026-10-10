@@ -100,7 +100,7 @@ python tools/update.py --check-only
 python tools/update.py --maintainer .\zed-zh-maintain.exe --config config.local.toml
 ```
 
-也可以复用已有且干净的公开官方/社区 checkout，通过 `--toolkit` 和 `--source-root` 指定；版本必须与检测到的上游一致，不会重置用户 checkout。
+也可以复用已有且干净的公开 checkout，通过 `--toolkit` 指定固定审查提交 `99301f35d52a33a940ac9a6bfc1d8e5f5decf67b` 的社区工具，通过 `--source-root` 指定检测到的官方稳定版源码。新社区词典以数据读取，自动化不执行其未审查的新 Python/提示代码，也不会重置用户 checkout。
 
 若只想准备上下文、不调用 AI，运行 `python tools/update.py`，无需密钥。社区已提供全部译文时，本次任务同样不会调用 AI。
 
