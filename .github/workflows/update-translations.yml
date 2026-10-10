@@ -55,6 +55,7 @@ jobs:
           ZED_I18N_MODEL: ${{ vars.AI_MODEL }}
           ZED_I18N_API_BASE: ${{ vars.AI_API_BASE }}
           ZED_I18N_LEGACY_MAX_TOKENS: ${{ vars.AI_LEGACY_MAX_TOKENS }}
+          ZED_I18N_PROVIDER: ${{ vars.AI_PROVIDER }}
         run: |
           python - <<'PY'
           import json,os,pathlib,subprocess,sys
@@ -65,7 +66,11 @@ jobs:
           model=os.environ.get('ZED_I18N_MODEL','')
           base=os.environ.get('ZED_I18N_API_BASE') or 'https://api.openai.com/v1'
           legacy=os.environ.get('ZED_I18N_LEGACY_MAX_TOKENS','').lower()=='true'
-          config.write_text('api_base='+json.dumps(base)+'\nmodel='+json.dumps(model)+'\nuse_legacy_max_tokens='+str(legacy).lower()+'\n',encoding='utf-8')
+          deepseek=os.environ.get('ZED_I18N_PROVIDER')=='deepseek'
+          text='api_base='+json.dumps(base)+'\nmodel='+json.dumps(model)+'\nuse_legacy_max_tokens='+str(legacy or deepseek).lower()+'\n'
+          if deepseek:
+              text+='provider_prompt_cache_key=false\n[extra_body.thinking]\ntype="disabled"\n'
+          config.write_text(text,encoding='utf-8')
           command=[sys.executable,'tools/update.py']
           if os.environ.get('ZED_I18N_API_KEY') and model:
               command += ['--maintainer','target/release/zed-zh-addon','--config',str(config)]

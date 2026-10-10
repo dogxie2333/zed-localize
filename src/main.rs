@@ -9,7 +9,7 @@ use std::{
 };
 #[cfg(windows)]
 use zed_zh_addon::catalog::hash_file;
-use zed_zh_addon::catalog::make_plan;
+use zed_zh_addon::catalog::make_plan_with_scope;
 
 #[derive(Parser)]
 #[command(
@@ -17,6 +17,9 @@ use zed_zh_addon::catalog::make_plan;
     about = "Official Zed localization companion / 官方 Zed 局部汉化附件"
 )]
 struct Cli {
+    /// Expand to plain settings/notifications; still experimental.
+    #[arg(long, global = true)]
+    extended: bool,
     #[arg(long, global = true)]
     exe: Option<PathBuf>,
     #[arg(long, global = true)]
@@ -131,10 +134,10 @@ fn english(exe: &Path, arguments: &[String], reason: &str) -> Result<Value> {
 }
 
 #[cfg(windows)]
-fn memory_test(exe: &Path) -> Result<Value> {
+fn memory_test(exe: &Path, extended: bool) -> Result<Value> {
     use zed_zh_addon::windows_runtime::{Process, apply, restore, verify};
     let started = Instant::now();
-    let plan = make_plan(exe)?;
+    let plan = make_plan_with_scope(exe, extended)?;
     ensure!(plan.supported, "Executable has not been approved");
     let process = Process::spawn_suspended(exe, &profile_arguments(true, true)?)?;
     let base = process.image_base()?;
@@ -158,19 +161,25 @@ fn memory_test(exe: &Path) -> Result<Value> {
     Ok(
         json!({"mode":"memory-test", "pid":process.pid, "count":count, "restored":restored,
         "original_mismatch_rejected":true,"injected_failure_rolled_back":true,
-        "disk_unchanged":unchanged,"isolated":true,"elapsed_seconds":started.elapsed().as_secs_f64()}),
+        "disk_unchanged":unchanged,"extended":extended,"isolated":true,"elapsed_seconds":started.elapsed().as_secs_f64()}),
     )
 }
 
 #[cfg(windows)]
-fn launch(exe: &Path, experimental: bool, isolated: bool, extra: Vec<String>) -> Result<Value> {
+fn launch(
+    exe: &Path,
+    experimental: bool,
+    isolated: bool,
+    extra: Vec<String>,
+    extended: bool,
+) -> Result<Value> {
     use zed_zh_addon::windows_runtime::{Process, apply};
     let mut arguments = profile_arguments(isolated, false)?;
     arguments.extend(extra);
     if !experimental {
         return english(exe, &arguments, "Experimental backend is disabled");
     }
-    let plan = match make_plan(exe) {
+    let plan = match make_plan_with_scope(exe, extended) {
         Ok(plan) if plan.supported => plan,
         Ok(_) => return english(exe, &arguments, "Unsupported official package hash"),
         Err(_) => return english(exe, &arguments, "Cannot prepare a compatible patch plan"),
@@ -182,7 +191,7 @@ fn launch(exe: &Path, experimental: bool, isolated: bool, extra: Vec<String>) ->
         process.resume()?;
         Ok(
             json!({"mode":"experimental-launch","pid":process.pid,"count":count,"resident_launcher":false,
-            "memory_left_applied":true,"sha256":plan.sha256,"isolated":isolated}),
+            "memory_left_applied":true,"sha256":plan.sha256,"extended":extended,"isolated":isolated}),
         )
     })();
     operation.or_else(|_| {
@@ -195,9 +204,9 @@ fn launch(exe: &Path, experimental: bool, isolated: bool, extra: Vec<String>) ->
 }
 
 #[cfg(windows)]
-fn restore_pid(exe: &Path, pid: u32) -> Result<Value> {
+fn restore_pid(exe: &Path, pid: u32, extended: bool) -> Result<Value> {
     use zed_zh_addon::windows_runtime::{Process, restore};
-    let plan = make_plan(exe)?;
+    let plan = make_plan_with_scope(exe, extended)?;
     ensure!(plan.supported, "Unsupported executable");
     let process = Process::open(pid)?;
     process.verify_identity(exe)?;
@@ -235,17 +244,20 @@ fn run(cli: Cli) -> Result<Value> {
     }
     let exe = discover_exe(cli.exe)?;
     match cli.command {
-        Command::Plan => Ok(serde_json::to_value(make_plan(&exe)?)?),
+        Command::Plan => Ok(serde_json::to_value(make_plan_with_scope(
+            &exe,
+            cli.extended,
+        )?)?),
         #[cfg(windows)]
-        Command::TestMemory => memory_test(&exe),
+        Command::TestMemory => memory_test(&exe, cli.extended),
         #[cfg(windows)]
         Command::Launch {
             experimental,
             isolated,
             arguments,
-        } => launch(&exe, experimental, isolated, arguments),
+        } => launch(&exe, experimental, isolated, arguments, cli.extended),
         #[cfg(windows)]
-        Command::Restore { pid } => restore_pid(&exe, pid),
+        Command::Restore { pid } => restore_pid(&exe, pid, cli.extended),
         #[allow(unreachable_patterns)]
         _ => bail!("Process operations are only supported on Windows x64"),
     }

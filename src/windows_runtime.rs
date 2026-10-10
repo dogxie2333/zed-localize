@@ -11,6 +11,11 @@ use windows_sys::Win32::{
     Foundation::{CloseHandle, HANDLE},
     System::{
         Diagnostics::Debug::{ReadProcessMemory, WriteProcessMemory},
+        JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+            SetInformationJobObject,
+        },
         Memory::{
             MEM_COMMIT, MEM_IMAGE, MEMORY_BASIC_INFORMATION, PAGE_EXECUTE, PAGE_EXECUTE_READ,
             PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_WRITECOPY, PAGE_READWRITE, VirtualProtectEx,
@@ -41,6 +46,7 @@ pub struct Process {
     pub pid: u32,
     owned: bool,
     resumed: bool,
+    job: Option<Handle>,
 }
 
 fn win_error(operation: &str) -> anyhow::Error {
@@ -110,13 +116,36 @@ impl Process {
         if ok == 0 {
             return Err(win_error("CreateProcessW"));
         }
-        Ok(Self {
+        let mut process = Self {
             handle: Handle(info.hProcess),
             thread: Some(Handle(info.hThread)),
             pid: info.dwProcessId,
             owned: true,
             resumed: false,
-        })
+            job: None,
+        };
+        let job = unsafe { CreateJobObjectW(null(), null()) };
+        if job.is_null() {
+            return Err(win_error("CreateJobObjectW"));
+        }
+        process.job = Some(Handle(job));
+        let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { zeroed() };
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if unsafe {
+            SetInformationJobObject(
+                job,
+                JobObjectExtendedLimitInformation,
+                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            )
+        } == 0
+        {
+            return Err(win_error("SetInformationJobObject"));
+        }
+        if unsafe { AssignProcessToJobObject(job, process.handle.0) } == 0 {
+            return Err(win_error("AssignProcessToJobObject"));
+        }
+        Ok(process)
     }
 
     pub fn open(pid: u32) -> Result<Self> {
@@ -139,6 +168,7 @@ impl Process {
             pid,
             owned: false,
             resumed: true,
+            job: None,
         })
     }
 
@@ -345,6 +375,23 @@ impl Process {
             return Err(win_error("ResumeThread"));
         }
         self.resumed = true;
+        if let Some(job) = &self.job {
+            let limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { zeroed() };
+            // Once startup is committed, Zed must survive the launcher's exit.
+            // Before this point the kernel ends the paused child even if the
+            // launcher is forcibly killed and Rust Drop cannot execute.
+            if unsafe {
+                SetInformationJobObject(
+                    job.0,
+                    JobObjectExtendedLimitInformation,
+                    (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                    size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                )
+            } == 0
+            {
+                return Err(win_error("Release startup job protection"));
+            }
+        }
         Ok(())
     }
 

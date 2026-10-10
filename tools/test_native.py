@@ -9,11 +9,13 @@ p = argparse.ArgumentParser()
 p.add_argument("--binary", type=Path, required=True)
 p.add_argument("--exe", type=Path, required=True)
 p.add_argument("--python-reference", type=Path)
+p.add_argument("--extended", action="store_true")
 p.add_argument("--output", type=Path, default=Path("reports/native-integration.json"))
 args = p.parse_args()
 
 def run(*arguments):
-    result = subprocess.run([str(args.binary.resolve()), *arguments, "--exe", str(args.exe.resolve())],
+    scope = ["--extended"] if args.extended else []
+    result = subprocess.run([str(args.binary.resolve()), *arguments, "--exe", str(args.exe.resolve()), *scope],
                             capture_output=True, text=True, encoding="utf-8", timeout=30)
     if result.returncode:
         raise RuntimeError(result.stderr)
@@ -40,7 +42,7 @@ try:
     report = {"status": "passed", "candidate_count": plan["candidate_count"], "python_parity": parity,
               "memory": memory, "launcher_exited": True, "restore_after_exit": restored,
               "plan_seconds": plan["tool_elapsed_seconds"], "launch_seconds": launched["tool_elapsed_seconds"],
-              "isolated": True, "visual_acceptance": False}
+              "isolated": True, "extended": args.extended, "visual_acceptance": False}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2))

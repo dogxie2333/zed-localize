@@ -4,7 +4,8 @@ use async_openai::{
     config::OpenAIConfig,
     types::chat::{
         ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs,
-        CreateChatCompletionRequestArgs, ResponseFormat, ResponseFormatJsonSchema,
+        CreateChatCompletionRequestArgs, CreateChatCompletionResponse, ResponseFormat,
+        ResponseFormatJsonSchema,
     },
 };
 use redb::{Database, ReadableDatabase, TableDefinition};
@@ -53,6 +54,7 @@ pub struct Config {
     pub allow_local_http: bool,
     pub use_legacy_max_tokens: bool,
     pub json_mode: bool,
+    pub extra_body: BTreeMap<String, Value>,
 }
 
 impl Default for Config {
@@ -69,12 +71,19 @@ impl Default for Config {
             allow_local_http: false,
             use_legacy_max_tokens: false,
             json_mode: true,
+            extra_body: BTreeMap::new(),
         }
     }
 }
 
 impl Config {
     pub fn validate(&self) -> Result<()> {
+        ensure!(
+            self.extra_body
+                .keys()
+                .all(|key| matches!(key.as_str(), "thinking" | "reasoning_effort")),
+            "Only reasoning/thinking vendor parameters are accepted; core request and budget fields cannot be overridden"
+        );
         ensure!(!self.model.trim().is_empty(), "Configure a provider model");
         ensure!(
             self.timeout_seconds > 0
@@ -180,6 +189,7 @@ pub fn semantic_entry(entry: &Value) -> Result<Value> {
 pub fn cache_key(jobs: &Jobs, config: &Config, entry: &Value) -> Result<String> {
     let payload = json!({"policy":POLICY,"locale":jobs.locale,"model":config.model,
         "provider":config.api_base.trim_end_matches('/'),"prompt":jobs.system_prompt,
+        "generation": {"extra_body":config.extra_body,"max_output_tokens":config.max_output_tokens},
         "validator":jobs.validator_fingerprint,"entry":semantic_entry(entry)?});
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&payload)?)))
 }
@@ -381,15 +391,22 @@ pub async fn translate_jobs(
             builder.prompt_cache_key(&prefix_key);
         }
         let request = builder.build()?;
+        let mut body = serde_json::to_value(request)?;
+        let object = body
+            .as_object_mut()
+            .context("Invalid SDK request serialization")?;
+        for (key, value) in &config.extra_body {
+            object.insert(key.clone(), value.clone());
+        }
         // The SDK supplies bounded transient retries. This outer deadline also
         // bounds the total batch wall time across any SDK retry/backoff.
-        let response = tokio::time::timeout(
+        let response_json: Value = tokio::time::timeout(
             Duration::from_secs(config.timeout_seconds),
             client
                 .as_ref()
                 .context("Missing API client")?
                 .chat()
-                .create(request),
+                .create_byot(body),
         )
         .await
         .map_err(|_| anyhow::anyhow!("AI batch deadline exceeded"))?
@@ -399,12 +416,18 @@ pub async fn translate_jobs(
             )
         })?;
         requests += 1;
+        let native_cached_tokens = response_json["usage"]["prompt_cache_hit_tokens"]
+            .as_u64()
+            .unwrap_or(0);
+        let response: CreateChatCompletionResponse = serde_json::from_value(response_json)
+            .map_err(|_| anyhow::anyhow!("Provider returned an incompatible completion envelope (contents are not logged)"))?;
         if let Some(usage) = &response.usage {
             provider_cached_tokens += usage
                 .prompt_tokens_details
                 .as_ref()
                 .and_then(|details| details.cached_tokens)
-                .unwrap_or(0) as u64;
+                .map(u64::from)
+                .unwrap_or(native_cached_tokens);
         }
         let choice = response
             .choices
@@ -427,6 +450,13 @@ pub async fn translate_jobs(
         let object = translated
             .as_object()
             .context("Provider returned a non-object translation")?;
+        ensure!(
+            !object
+                .values()
+                .filter_map(Value::as_str)
+                .any(|text| secret.as_deref().is_some_and(|key| text.contains(key))),
+            "Decoded provider response contains sensitive data; nothing was persisted"
+        );
         let sources = batch
             .entries
             .iter()
@@ -587,5 +617,24 @@ mod tests {
         assert!(cfg.validate().is_err());
         cfg.api_base = "http://127.0.0.1:9000/v1".into();
         assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn vendor_parameters_cannot_override_budget_or_messages() {
+        let mut cfg = config();
+        cfg.extra_body.insert("max_tokens".into(), json!(999999));
+        assert!(cfg.validate().is_err());
+        cfg.extra_body.clear();
+        cfg.extra_body.insert("messages".into(), json!([]));
+        assert!(cfg.validate().is_err());
+        cfg.extra_body.clear();
+        cfg.extra_body
+            .insert("thinking".into(), json!({"type":"disabled"}));
+        assert!(cfg.validate().is_ok());
+        let entry = json!({"source":"Open Settings","kind":"menu_item"});
+        assert_ne!(
+            cache_key(&fixture_jobs(), &config(), &entry).unwrap(),
+            cache_key(&fixture_jobs(), &cfg, &entry).unwrap()
+        );
     }
 }

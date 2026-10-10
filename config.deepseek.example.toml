@@ -1,0 +1,18 @@
+# No credentials are stored in this file.
+# Model id was confirmed via the live /models endpoint on 2026-10-10.
+api_base = "https://api.deepseek.com/v1"
+model = "deepseek-flash"
+api_key_env = "ZED_I18N_API_KEY"
+timeout_seconds = 120
+max_batches = 20
+max_output_tokens = 8192
+strict_schema = false
+provider_prompt_cache_key = false
+allow_local_http = false
+use_legacy_max_tokens = true
+json_mode = true
+
+# DeepSeek native prefix caching is automatic; no OpenAI-specific cache key.
+# Translate maintenance batches without extended reasoning; never call at UI time.
+[extra_body.thinking]
+type = "disabled"

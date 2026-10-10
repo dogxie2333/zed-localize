@@ -24,7 +24,7 @@ jobs:
           cargo +1.99.0 build --release --locked --features ai
           Copy-Item target/release/zed-zh-addon.exe dist/maintainer/zed-zh-maintain.exe
           Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md dist/runtime/
-          Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md,config.example.toml dist/maintainer/
+          Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md,config.example.toml,config.deepseek.example.toml dist/maintainer/
           Copy-Item -Recurse tools,licenses dist/maintainer/
           python tools/collect_licenses.py --toolchain 1.99.0 --output dist/maintainer/dependency-licenses
           Copy-Item -Recurse dist/maintainer/dependency-licenses dist/runtime/
@@ -43,4 +43,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME dist/zed-zh-addon-windows-x64.zip dist/zed-zh-maintain-windows-x64.zip dist/SHA256SUMS.txt --prerelease --title "$env:GITHUB_REF_NAME 实验版" --notes "官方 Zed 1.23.2 Windows x64 局部汉化实验。运行版无 Python/AI 依赖；维护版支持更新时批量翻译。215 条候选不代表完整视觉验收。配置说明与限制见中文 README。"
+          gh release create $env:GITHUB_REF_NAME dist/zed-zh-addon-windows-x64.zip dist/zed-zh-maintain-windows-x64.zip dist/SHA256SUMS.txt --prerelease --title "$env:GITHUB_REF_NAME 实验版" --notes "保留 GPL-3.0，仅做官方 Zed 1.23.2 Windows x64 进程补丁。保守档 215 条，--extended 扩展档 668 条候选。维护版支持 DeepSeek 更新时批量翻译和语境缓存。候选数不代表全界面视觉验收；不包含自编译 Zed。配置与限制见中文 README。"

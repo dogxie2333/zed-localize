@@ -13,6 +13,11 @@ import urllib.request
 PIN = "99301f35d52a33a940ac9a6bfc1d8e5f5decf67b"
 ROOT = Path(__file__).resolve().parents[1]
 KINDS = {"menu", "menu_item", "button", "button_label", "label", "tooltip", "context_menu_action", "context_menu_entry", "context_menu_header", "context_menu_submenu", "tab_title", "headline", "empty_state"}
+EXTENDED_KINDS = KINDS | {"setting_title", "setting_description", "settings_section_header", "settings_page_title",
+    "settings_subpage_title", "settings_subpage_description", "settings_page_description", "settings_action_title",
+    "settings_action_description", "tooltip_meta", "accessibility_label", "prompt_answer", "notification_title",
+    "notification_message", "notification", "toast", "status_toast", "callout_title", "callout_description",
+    "inline_description", "picker_section_header", "section_header", "settings_list_section_title"}
 
 def read(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -51,7 +56,8 @@ def export_catalog(args):
             continue
         occurrences = metadata.get("occurrences", [])
         messages.append({"source": source, "translation": translations[source], "origins": occurrences,
-                         "plain_ui": bool(occurrences) and all(o.get("kind") in KINDS for o in occurrences)})
+                         "plain_ui": bool(occurrences) and all(o.get("kind") in KINDS for o in occurrences),
+                         "extended_ui": bool(occurrences) and all(o.get("kind") in EXTENDED_KINDS for o in occurrences)})
     write(args.out, {"schema": 1, "upstream_commit": revision, "source_version": "1.23.2",
                      "source_commit": "c0199504b9cce79bc27524950022ed701bc3ebd5",
                      "validator_fingerprint": validator_fingerprint(args.toolkit),

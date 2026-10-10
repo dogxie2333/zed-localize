@@ -30,11 +30,18 @@ class Handler(BaseHTTPRequestHandler):
         payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         state["calls"] += 1
         state["requests"].append(payload)
+        content = json.dumps(state["answer"], ensure_ascii=False)
+        if state.get("escape_secret"):
+            content = content.replace(fake_key, fake_key.replace('-', '\\u002d'))
+        usage = {"prompt_tokens": 2048, "completion_tokens": 30, "total_tokens": 2078}
+        if state.get("deepseek_native"):
+            usage["prompt_cache_hit_tokens"] = 1024
+            usage["prompt_cache_miss_tokens"] = 1024
+        else:
+            usage["prompt_tokens_details"] = {"cached_tokens": 1024}
         body = json.dumps({"id": "chatcmpl-mock", "object": "chat.completion", "created": 0,
             "model": "mock-model", "choices": [{"index": 0, "message": {"role": "assistant",
-                "content": json.dumps(state["answer"], ensure_ascii=False)}, "finish_reason": "stop"}],
-            "usage": {"prompt_tokens": 2048, "completion_tokens": 30, "total_tokens": 2078,
-                      "prompt_tokens_details": {"cached_tokens": 1024}}}, ensure_ascii=False).encode()
+                "content": content}, "finish_reason": "stop"}], "usage": usage}, ensure_ascii=False).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -105,12 +112,24 @@ try:
         job_file.write_text(json.dumps(jobs), encoding="utf-8")
         state["answer"] = {"Failed to save {path}": "保存 {path} 失败 " + fake_key}
         run(success=False)
+        state["escape_secret"] = True
+        run(success=False)
         assert fake_key.encode() not in cache.read_bytes()
+        state["escape_secret"] = False
+        state["deepseek_native"] = True
+        state["answer"] = {"Failed to save {path}": "保存 {path} 失败"}
+        with config.open('a', encoding='utf-8') as config_file:
+            config_file.write('\n[extra_body.thinking]\ntype="disabled"\n')
+        native = run()
+        assert native["provider_cached_tokens"] == 1024
+        assert state["requests"][-1]["thinking"] == {"type": "disabled"}
         report = {"status": "passed", "external_provider_called": False, "community_validator_used": True,
             "initial_batch_requests": 1, "repeated_requests_without_key": 0,
             "line_and_version_change_cache_hit": True, "semantic_context_change_invalidated": True,
             "stable_system_prefix": True, "placeholder_rejection_and_recovery": True,
             "provider_secret_echo_rejected": True, "runtime_compatibility_auto_approved": False}
+        report["escaped_secret_echo_rejected"] = True
+        report["deepseek_native_cache_field_and_thinking"] = True
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(json.dumps(report, indent=2))

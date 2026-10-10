@@ -25,6 +25,8 @@ pub struct Message {
     pub translation: String,
     pub origins: Vec<Value>,
     pub plain_ui: bool,
+    #[serde(default)]
+    pub extended_ui: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -46,6 +48,8 @@ pub struct Section {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Plan {
+    #[serde(default)]
+    pub extended: bool,
     pub schema: u32,
     pub backend: String,
     pub exe: String,
@@ -131,6 +135,10 @@ pub fn check_spans(section: &Section, entries: &[Entry]) -> Result<()> {
 }
 
 pub fn make_plan(exe: &Path) -> Result<Plan> {
+    make_plan_with_scope(exe, false)
+}
+
+pub fn make_plan_with_scope(exe: &Path, extended: bool) -> Result<Plan> {
     let file = File::open(exe)?;
     // Windows keeps the mapped file alive; no file offsets or raw references
     // escape this function. The caller rechecks the hash before applying.
@@ -166,8 +174,21 @@ pub fn make_plan(exe: &Path) -> Result<Plan> {
     skipped.insert("not_accepted_or_invalid".into(), catalog.ignored_entries);
     let mut candidates = Vec::new();
     for message in &catalog.messages {
-        let reason = if !message.plain_ui {
+        let eligible = if extended {
+            message.extended_ui
+        } else {
+            message.plain_ui
+        };
+        let reason = if !eligible {
             Some("outside_plain_ui_scope")
+        } else if extended
+            && message
+                .source
+                .chars()
+                .chain(message.translation.chars())
+                .any(|c| "*_[]<>".contains(c))
+        {
+            Some("rich_text_syntax")
         } else if padded_translation(&message.source, &message.translation).is_none() {
             Some("short_formatted_or_translation_too_long")
         } else {
@@ -252,6 +273,7 @@ pub fn make_plan(exe: &Path) -> Result<Plan> {
         .collect();
     check_spans(&section, &entries)?;
     Ok(Plan {
+        extended,
         schema: 1,
         backend: "experimental-equal-byte-rdata".into(),
         exe: exe.canonicalize()?.display().to_string(),
