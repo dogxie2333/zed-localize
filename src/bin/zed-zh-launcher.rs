@@ -326,6 +326,9 @@ mod desktop {
         if settings(root)["watch_enabled"].as_bool() == Some(false) {
             return ("已暂停自动本地化", "paused");
         }
+        if zed_zh_addon::localization::selected(&state(root)) == "en" {
+            return ("原文模式：English", "english");
+        }
         let status = fs::read(state(root).join("runtime-status.json"))
             .ok()
             .and_then(|data| serde_json::from_slice::<Value>(&data).ok());
@@ -608,7 +611,11 @@ mod desktop {
             "english"
         } else {
             match zed_zh_addon::gadget_runtime::attach(&root, exe, process.pid, None, false) {
-                Ok(true) => "chinese",
+                Ok(true) => match zed_zh_addon::localization::selected(&state(&root)).as_str() {
+                    "zh-CN" => "chinese",
+                    "en" => "english",
+                    _ => "localized",
+                },
                 Ok(false) => "unsupported-english",
                 Err(_) => "attach-failed-english",
             }

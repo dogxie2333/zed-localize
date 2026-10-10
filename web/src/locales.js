@@ -67,7 +67,8 @@ export const messages = {
     "pageLanguage": "设置页语言",
     "aiLanguages": "AI 翻译语言",
     "currentLanguage": "当前 Zed 翻译语言",
-    "translationLanguageSaved": "语言已保存，重启 Zed 完整生效"
+    "translationLanguageSaved": "语言已保存，重启 Zed 完整生效",
+    "english": "原文模式"
   },
   "zh-TW": {
     "brand": "Localize",
@@ -137,7 +138,8 @@ export const messages = {
     "pageLanguage": "設定頁語言",
     "aiLanguages": "AI 翻譯語言",
     "currentLanguage": "目前 Zed 翻譯語言",
-    "translationLanguageSaved": "語言已儲存，重新啟動 Zed 完整生效"
+    "translationLanguageSaved": "語言已儲存，重新啟動 Zed 完整生效",
+    "english": "原文模式"
   },
   "en": {
     "brand": "Localize",
@@ -207,6 +209,7 @@ export const messages = {
     "pageLanguage": "Settings language",
     "aiLanguages": "AI translation languages",
     "currentLanguage": "Current Zed language",
-    "translationLanguageSaved": "Language saved. Restart Zed to refresh all text."
+    "translationLanguageSaved": "Language saved. Restart Zed to refresh all text.",
+    "english": "Original English"
   }
 };

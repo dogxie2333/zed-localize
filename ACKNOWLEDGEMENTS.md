@@ -1,7 +1,7 @@
 # 鸣谢
 
 - **Zed Industries / zed-industries/zed**：官方编辑器、公开界面文案和标志参考；本项目使用官方主线发行包。
-- **LI-NA/zed-i18n**：中文词典、术语、公开源码语境、文案提取与校验工具。
+- **LI-NA/zed-i18n**：13 种语言的词典、术语、公开源码语境、文案提取与校验工具。
 - **Microsoft / vscode-loc**：社区项目引用的本地化资料。
 - **Frida**：官方 Gadget 与显示拦截运行时。
 - **dll-syringe、windows-rs、notify、tray-icon、muda**：原生 Windows 进程、事件、托盘和菜单能力。

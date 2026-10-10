@@ -15,7 +15,12 @@ pub fn supported(locale: &str) -> bool {
 pub fn selected(state: &Path) -> String {
     fs::read(state.join("settings.json"))
         .ok()
-        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|bytes| {
+            serde_json::from_slice::<Value>(
+                bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes),
+            )
+            .ok()
+        })
         .and_then(|value| value["translation_language"].as_str().map(str::to_owned))
         .filter(|locale| supported(locale))
         .unwrap_or_else(|| "zh-CN".into())

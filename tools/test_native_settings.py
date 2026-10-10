@@ -60,7 +60,7 @@ try:
             for locale in ('ja-JP','en','zh-CN'):
                 assert api('translation-language',{'language':locale})['code']=='translationLanguageSaved'
                 assert api('config')['config']['translation_language']==locale
-                assert json.loads((state/'gadget-control.json').read_text())['locale']==locale
+                assert json.loads((state/'gadget-control.json').read_text(encoding='utf-8'))['locale']==locale
             assert api('translation-language',{'language':'../escape'})['code']=='failed'
             assert api('inspect',{'folder':str(folder/'missing')})['code']=='invalidFolder'
             key='mock-native-ui-test-only'
@@ -68,16 +68,18 @@ try:
             assert api('ai/models',config)['models']==['test-model']
             assert api('ai/test',config)['code']=='connected'
             assert api('ai/save',config)['code']=='saved'
-            assert key not in (state/'settings.json').read_text()
+            assert key not in (state/'settings.json').read_text(encoding='utf-8')
             config['translation_languages']=['zh-CN','zh-TW']
+            assert api('ai/save',config)['code']=='saved'
+            assert api('config')['config']['translation_languages']==['zh-CN','zh-TW']
             first=api('ai/translate',config);second=api('ai/translate',config)
             assert first['code']=='translated' and first['count']==4
             assert second['cache_hits']==4 and requests.count('translation')==2
-            assert json.loads((state/'drafts/zh-CN.json').read_text())['translations']['Save']=='保存'
-            assert json.loads((state/'drafts/zh-TW.json').read_text())['translations']['Save']=='儲存'
-            draft=json.loads((state/'drafts/native.json').read_text())
+            assert json.loads((state/'drafts/zh-CN.json').read_text(encoding='utf-8'))['translations']['Save']=='保存'
+            assert json.loads((state/'drafts/zh-TW.json').read_text(encoding='utf-8'))['translations']['Save']=='儲存'
+            draft=json.loads((state/'drafts/native.json').read_text(encoding='utf-8'))
             assert draft['community_validated'] is False and draft['runtime_compatibility_approved'] is False
-            assert key not in (state/'drafts/native.json').read_text()
+            assert key not in (state/'drafts/native.json').read_text(encoding='utf-8')
             assert api('close',{})['code']=='closing'
             process.wait(timeout=6)
             assert process.returncode==0

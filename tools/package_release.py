@@ -7,6 +7,9 @@ files={'Zed-Localize.exe':exe,'README.md':r/'README.md','README.en.md':r/'README
 for file in (r/'licenses').rglob('*'):
     if file.is_file():files[file.relative_to(r).as_posix()]=file
 files['examples/settings.json']=r/'examples/settings.json'
+for file in (r/'docs').glob('*.md'):
+    files[file.relative_to(r).as_posix()]=file
+files['data/locales.json']=r/'data/locales.json'
 archive=dist/'zed-localize-windows-x64.zip'
 with zipfile.ZipFile(archive,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9,strict_timestamps=False) as z:
     for name,path in sorted(files.items()):z.write(path,name)
