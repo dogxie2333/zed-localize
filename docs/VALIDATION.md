@@ -29,3 +29,11 @@ Ubuntu 24.04 x86_64：官方 release 压缩包摘要与 GitHub digest 一致；�
 启动器新增成熟 wayland-client 就绪检查和 auto/wayland/x11 选择。Linux 8 项单元测试、Windows 12 项通过；Linux Clippy 通过。真实隔离编辑器六项回归通过：冷启动自动等待后用 Wayland、强制 Wayland、强制 X11、缺失 compositor 回退、接受连接但不回应的 compositor 超时回退、强制 Wayland 超时报错且不启动编辑器。存活检查均在启动器退出后进行，测试只结束自己创建的编辑器。
 
 冷启动自动模式约 3.28 秒；就绪后的强制 Wayland / X11 约 0.57 秒；故障回退约 5.5 秒。包括启动器规划和内存校验，不是帧耗时。本机仍选择 llvmpipe 软件渲染，未验收硬件 GPU 或完整 Ubuntu 桌面视觉。脚本：`tools/test_linux_launch.py`，需显式提供测试官方包、资源路径和隔离目录，以普通桌面用户执行。
+
+## 2026-10-11 WSLg 硬件加速补充
+
+后续 GPU 诊断确认 `/dev/dxg` 存在，Vulkan 可枚举 NVIDIA RTX 5060 Laptop 与 AMD 610M 的 Dozen 适配器，但 wgpu 的 debug 日志明确显示 `Adapter is not Vulkan compliant, hiding adapter`。只指定 Dozen ICD / NVIDIA device ID 仍回落软件渲染。
+
+复用 Mesa 已有环境变量，单次启动设置 `GALLIUM_DRIVER=d3d12` 与 `MESA_D3D12_DEFAULT_ADAPTER_NAME`。真实隔离 Zed 的 NVIDIA / X11、NVIDIA / Wayland、AMD / Wayland 三项均选择 D3D12 硬件的 Gl 后端，通过 GPUI 表面配置，`Using GPU` 中 `is_software_emulated: false`，启动器退出六秒后仍存活。简体中文补丁仍应用 664 条。`glxinfo -B` 同时报告 NVIDIA `Accelerated: yes`。
+
+仅在测试进程设置环境变量，未更改显卡驱动、WSLg 服务或用户全局环境；未改官方 Zed 文件。没有输入、滚动帧率或完整桌面视觉验收。详见 LINUX.md 的 WSLg 启动命令。

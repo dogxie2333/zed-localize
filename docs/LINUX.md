@@ -25,7 +25,19 @@ sudo apt install ./zed-localize_0.3.1-alpha.2_amd64.deb
 
 WSLg 冷启动测试发现：socket 先出现，`wl_seat` 约 3 秒后才发布。指定官方 Zed 1.23.2 会在 seat 缺失时解包空值崩溃；设备就绪后原版与补丁版均可启动 Wayland。此前的 Wayland 失败来自这次启动时序，不能推广为所有 Ubuntu Wayland 桌面不兼容。完整 Ubuntu 桌面仍待验收。
 
-X11 与 Wayland 均可走 Vulkan，但本机 WSLg 的两个测试都选择了 `llvmpipe` 软件渲染，尚未验证硬件 GPU 加速。启动检查只解决输入设备初始化，不修改系统图形驱动。
+## WSLg 硬件加速
+
+本机默认启动选择 `llvmpipe`。诊断日志显示，wgpu 将当前 Mesa Dozen Vulkan 驱动标记为不合规并隐藏硬件适配器；仅设置 `ZED_DEVICE_ID` 不能恢复这些适配器。已验证可使用官方 Zed 的 OpenGL 后端，经 Mesa D3D12 使用宿主机 GPU：
+
+```sh
+env GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA \
+  /opt/zed-localize/zed-localize-linux \
+  --zed "$HOME/.local/zed.app/libexec/zed-editor" launch
+```
+
+使用 AMD 显卡时将 `NVIDIA` 改为 `AMD`。需要指定显示协议，可在 `launch` 前加入 `--display-server wayland` 或 `--display-server x11`。这些变量只作用于本次启动，不修改系统配置；仅用于提供 Mesa D3D12 驱动的 WSLg 环境，普通 Ubuntu 桌面使用自己的原生驱动。
+
+2026-10-11 实测：RTX 5060 Laptop 的 X11 / Wayland、AMD 610M 的 Wayland 均通过 GPUI 表面配置和隔离启动，Zed 日志显示 `is_software_emulated: false`，启动器退出后编辑器存活。路径是 OpenGL → D3D12，未宣称 Vulkan 硬件路线或输入/滚动帧率验收。当前实验包可直接使用这些环境变量，不需更换官方 Zed 或重新构建补丁。
 
 ## 范围
 
