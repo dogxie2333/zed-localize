@@ -9,6 +9,15 @@ const hooked = new Set();
 const hits = new Map();
 const denied = new Map();
 const fontFunctions = new Map();
+const fontCache = new Map();
+const textBuffers = new Map();
+let bufferBytes = 0;
+let uiMarkerAddress;
+const metrics={buffer_hits:0,buffer_misses:0,font_hits:0,font_misses:0};
+function cacheStats(){return {...metrics,text_entries:textBuffers.size,text_bytes:bufferBytes,font_entries:fontCache.size};}
+function clearTextBuffers(){textBuffers.clear();bufferBytes=0;}
+function releaseFonts(){for(const item of fontCache.values()) item.release(item.pointer);fontCache.clear();}
+if(typeof Script!=='undefined') Script.bindWeak(fontCache,releaseFonts);
 let enabled = true;
 let attachExisting = false;
 let currentLocale = 'zh-CN';
@@ -22,16 +31,22 @@ function selectLocale(locale) {
     if (!entries.every(([source,text]) => typeof text === 'string' && text.length > 0 &&
         text.length <= source.length && !/[{}\n\r\t`*_\[\]<>\x00]/.test(source+text))) return;
     dictionary = new Map(entries);
+    clearTextBuffers();
     currentLocale = locale;
     hits.clear();
 }
 function fontName(format) {
+    const retained=fontCache.get(format.toString());
+    if(retained!==undefined){metrics.font_hits++;return retained.name;}
+    metrics.font_misses++;
     const table = format.readPointer();
     const key=table.toString();
     let functions=fontFunctions.get(key);
     if (functions===undefined) {
         functions={length:new NativeFunction(table.add(20 * Process.pointerSize).readPointer(),'uint',['pointer']),
-                   name:new NativeFunction(table.add(21 * Process.pointerSize).readPointer(),'int',['pointer','pointer','uint'])};
+                   name:new NativeFunction(table.add(21 * Process.pointerSize).readPointer(),'int',['pointer','pointer','uint']),
+                   retain:new NativeFunction(table.add(Process.pointerSize).readPointer(),'uint',['pointer']),
+                   release:new NativeFunction(table.add(2 * Process.pointerSize).readPointer(),'uint',['pointer'])};
         fontFunctions.set(key,functions);
     }
     const length = functions.length(format);
@@ -39,6 +54,22 @@ function fontName(format) {
     const buffer = Memory.alloc((length+1)*2);
     const result = functions.name(format,buffer,length+1);
     return result >= 0 ? buffer.readUtf16String(length) : '';
+}
+function retainUiFormat(format,name){
+    const key=format.toString();
+    if(fontCache.has(key)||fontCache.size>=64)return;
+    const functions=fontFunctions.get(format.readPointer().toString());
+    functions.retain(format);
+    fontCache.set(key,{pointer:format,name,release:functions.release});
+}
+function translatedBuffer(text,translation,length){
+    let buffer=textBuffers.get(text);
+    if(buffer!==undefined){metrics.buffer_hits++;return buffer;}
+    metrics.buffer_misses++;
+    buffer=Memory.allocUtf16String(translation+' '.repeat(length-translation.length));
+    const bytes=(length+1)*2;
+    if(textBuffers.size<512 && bufferBytes+bytes<=512*1024){textBuffers.set(text,buffer);bufferBytes+=bytes;}
+    return buffer;
 }
 function protectFiles(module) {
     const api=module.findExportByName('CreateFileW');
@@ -66,18 +97,17 @@ function installFactory(factory) {
         const text=args[1].readUtf16String(length);
         const translated=dictionary.get(text);
         if (translated===undefined || protectedNames.has(text)) return;
-        if (!fonts.has(fontName(args[3]))) {denied.set('font',(denied.get('font')||0)+1);return;}
-        const main=Process.mainModule;
+        const family=fontName(args[3]);
+        if (!fonts.has(family)) {denied.set('font',(denied.get('font')||0)+1);return;}
         // UI TextLayout has a verified caller marker. Editor/terminal shaping
         // bypasses this caller even if the user selects the same font family.
-        const ui=Thread.backtrace(this.context,Backtracer.ACCURATE).some(address=>
-            address.compare(main.base)>=0 && address.compare(main.base.add(main.size))<0 &&
-            address.sub(main.base).toString()===marker);
+        const ui=Thread.backtrace(this.context,Backtracer.ACCURATE).some(address=>address.compare(uiMarkerAddress)===0);
         if (!ui) {denied.set('caller',(denied.get('caller')||0)+1);return;}
         if (translated.length>length) return;
         // Keep UTF-16 indexing unchanged for DWrite style ranges and GPUI's
         // original UTF-8<->UTF-16 converter. The displayed text is ephemeral.
-        this.buffer=Memory.allocUtf16String(translated+' '.repeat(length-translated.length));
+        retainUiFormat(args[3],family);
+        this.buffer=translatedBuffer(text,translated,length);
         args[1]=this.buffer;
         hits.set(text,(hits.get(text)||0)+1);
     },onLeave(){this.buffer=null;}});
@@ -96,11 +126,13 @@ rpc.exports = {
     configure(config) {
         if (config.image_size!==Process.mainModule.size) throw new Error('Unexpected image size');
         dictionary=new Map(Object.entries(config.messages));
+        clearTextBuffers();releaseFonts();
         currentLocale=config.locale||'zh-CN';
         catalogs=config.catalogs||{};
         publicKeys=new Set(config.public_sources||Object.keys(config.messages));
         fonts=new Set(config.ui_fonts);
         marker=config.ui_caller_rva;
+        uiMarkerAddress=Process.mainModule.base.add(marker);
         attachExisting=config.attach_existing===true;
         for (const name of config.protected_names||[]) protectedNames.add(name);
         moduleObserver=Process.attachModuleObserver({onAdded(module){
@@ -114,6 +146,6 @@ rpc.exports = {
         }});
         return {messages:dictionary.size,enabled:true};
     },
-    stats(){return {translated_keys:Object.fromEntries(hits),denied:Object.fromEntries(denied),protected_count:protectedNames.size};},
-    disable(){enabled=false;Interceptor.detachAll();return {disabled:true};}
+    stats(){return {translated_keys:Object.fromEntries(hits),denied:Object.fromEntries(denied),protected_count:protectedNames.size,cache:cacheStats()};},
+    disable(){enabled=false;Interceptor.detachAll();clearTextBuffers();releaseFonts();return {disabled:true};}
 };

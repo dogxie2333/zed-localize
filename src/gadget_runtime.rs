@@ -40,11 +40,8 @@ pub fn config(root: &Path, exe: &Path, profile: Option<&Path>) -> Result<Option<
     };
     let locale = crate::localization::selected(&state);
     let messages = crate::localization::messages(root, &locale)?;
-    let public_sources: Vec<String> = crate::catalog::embedded_catalog()?
-        .messages
-        .into_iter()
-        .map(|message| message.source)
-        .collect();
+    let public_sources: Vec<String> =
+        serde_json::from_slice(&fs::read(root.join("assets/public-ui-keys.json"))?)?;
     let catalogs: serde_json::Map<String, Value> = crate::localization::LOCALES
         .iter()
         .filter(|locale| **locale != "en")
@@ -55,10 +52,10 @@ pub fn config(root: &Path, exe: &Path, profile: Option<&Path>) -> Result<Option<
             )
         })
         .collect();
-    let bytes = fs::read(exe)?;
-    let pe = goblin::pe::PE::parse(&bytes)?;
+    let file = fs::File::open(exe)?;
+    let bytes = unsafe { memmap2::Mmap::map(&file)? };
+    let pe = goblin::pe::header::Header::parse(&bytes)?;
     let size = pe
-        .header
         .optional_header
         .context("Missing PE optional header")?
         .windows_fields
@@ -141,7 +138,7 @@ rpc.exports.init=function(stage,parameters){
     const statsPath=Memory.allocUtf16String(parameters.stats_path);
     const record=()=>{
       try {const control=JSON.parse(File.readAllText(parameters.control_path));selectLocale(control.locale);enabled=control.enabled!==false;}catch(_){}
-      const snapshot={pid:Process.id,mode:!enabled?'paused':currentLocale==='en'?'english':currentLocale==='zh-CN'?'chinese':'localized',locale:currentLocale,dictionary_count:dictionary.size,translated_distinct:hits.size,updated:Date.now()/1000};
+      const snapshot={pid:Process.id,mode:!enabled?'paused':currentLocale==='en'?'english':currentLocale==='zh-CN'?'chinese':'localized',locale:currentLocale,dictionary_count:dictionary.size,translated_distinct:hits.size,cache:cacheStats(),updated:Date.now()/1000};
       const file=new File(temporary,'w');file.write(JSON.stringify(snapshot));file.flush();file.close();
       move(temporaryPath,statsPath,1);
     };
@@ -323,6 +320,13 @@ pub fn enable(root: &Path, enabled: bool) -> Result<()> {
 }
 
 pub fn snapshots(root: &Path, exe: &Path) -> Vec<Value> {
+    snapshots_for_pids(root, exe, None)
+}
+pub fn snapshots_for_pids(
+    root: &Path,
+    exe: &Path,
+    pids: Option<&std::collections::HashSet<u32>>,
+) -> Vec<Value> {
     let mut reports = std::collections::BTreeMap::new();
     if let Ok(folders) = fs::read_dir(state_dir(root).join("gadgets")) {
         for folder in folders.flatten() {
@@ -335,7 +339,7 @@ pub fn snapshots(root: &Path, exe: &Path) -> Vec<Value> {
             else {
                 continue;
             };
-            if reports.contains_key(&pid) {
+            if pids.is_some_and(|pids| !pids.contains(&pid)) || reports.contains_key(&pid) {
                 continue;
             }
             let Ok(process) = Process::open(pid) else {

@@ -13,3 +13,11 @@ v0.3 本机通过 Rust 10 项测试、严格 Clippy、前端构建和 Node 词�
 GitHub Windows 测试曾因测试脚本默认 cp1252 读取中文 JSON 失败，已改为显式 UTF-8，并关闭 Python UTF-8 模式复测通过。CI 状态以对应提交的 Actions 为准。
 
 后续 Windows CI 在干净的官方 sparse checkout 上出现 Dulwich 状态误判。维护端优先使用已安装 Git 的只读 status 检查，保留无 Git 时的 Dulwich 路线。新增真实 sparse-index、换行规范化、Windows 符号链接占位文件及实际修改拒绝测试；源码仍须干净。公开源码语境检查移至 Rust 构建前，便于尽早发现问题。
+
+## v0.3.1
+
+Windows 12 项 Rust 测试、严格 Clippy、原生 SDK/缓存测试通过。真实隔离 Zed 的显示钩子、重启与语言切换通过，新的缓存字段可读。托盘隐藏后继续运行，约 0.81 秒隐藏、0.95 秒恢复，同一 PID。PE 内的 PerMonitorV2 manifest 已验证；实际多屏系统菜单视觉仍需物理显示验收。
+
+网页暗色下拉列表高度 274 px、内容 488 px，正常内部滚动，末尾 Türkçe 可选择。selected wrapper/placeholder 的 transform 均为 none；未编辑用户配置或凭据来执行网页测试。
+
+Ubuntu 24.04 x86_64：官方 release 压缩包摘要与 GitHub digest 一致；简体 664、繁体 634、日语 16、德语 51 条候选通过自建进程故障回滚和还原验证。最终新增错误原文拒绝测试通过。X11/WSLg 隔离启动后工具退出、编辑器继续运行；未宣称全部 UI 视觉通过。原版 Wayland 在该 WSLg 环境同样启动异常，未对官方程序另做修补。详见 LINUX.md。

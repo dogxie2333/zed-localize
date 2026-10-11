@@ -4,6 +4,8 @@
 
 为 **官方 Zed** 加载多语言界面，**跟随官方主线，保留官方更新渠道**。
 
+**Windows 版是独立于 Zed 主程序的 DLL 注入工具。** 启动器将官方 Frida Gadget DLL 注入 Zed 进程，在内存中的显示层替换文案；不修改磁盘上的官方 Zed.exe，也不是 Zed 插件。
+
 ## 使用
 
 在 [Releases](https://github.com/dogxie2333/zed-localize/releases) 下载 `Zed-Localize.exe` 或便携 ZIP，放在固定、可写的文件夹。
@@ -41,3 +43,9 @@
 自有代码 **MIT**；社区译文及 Zed 衍生素材保留 **GPL-3.0** 和上游声明。[许可](THIRD_PARTY_NOTICES.md) · [鸣谢](ACKNOWLEDGEMENTS.md)
 
 感谢 Zed Industries、LI-NA/zed-i18n、Microsoft/vscode-loc、Frida 与各组件维护者。
+
+## Ubuntu 24.04 实验包
+
+提供 x86_64 `.deb` 与便携 `.tar.gz`。Linux 使用独立 Rust 启动器和 ptrace 等长内存数据补丁，当前为指定 Zed 1.23.2 包提供 664 条简体中文安全候选；各语言覆盖不同。该后端不等同于 Windows 显示钩子，暂不含 Linux 托盘/网页设置，编辑器内部重启后需重新从工具启动。
+
+[Linux 使用说明](docs/LINUX.md)。

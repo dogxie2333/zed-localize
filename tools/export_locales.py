@@ -56,6 +56,9 @@ def export(toolkit):
         languages.append({'id':locale,'name':name,'entries':len(translations),
                           'eligible':len(messages)})
     write(ROOT/'data/locales.json',{'schema':1,'upstream_commit':commit,'languages':languages})
+    public_keys=set()
+    for locale in LANGUAGES: public_keys.update(read(ROOT/f'assets/locales/{locale}.json')['messages'])
+    write(ROOT/'assets/public-ui-keys.json',sorted(public_keys))
     print(json.dumps(languages))
 
 if __name__ == '__main__':

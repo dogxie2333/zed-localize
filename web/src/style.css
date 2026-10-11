@@ -5,3 +5,13 @@
 
 .dark .brand img{filter:invert(1)}
 .dark .el-checkbox__input.is-checked .el-checkbox__inner::after{border-color:#171717}.dark .el-radio__input.is-checked .el-radio__inner::after{background:#171717}
+
+/* Keep selected text on the normal text rasterization path at fractional DPI. */
+.el-select__wrapper{transform:none;font-family:inherit}
+.el-select__selection{min-height:24px}
+.el-select__placeholder{top:0;bottom:0;transform:none;display:flex;align-items:center;z-index:0;pointer-events:none;color:var(--ink)}
+.el-select-dropdown__item{font-family:inherit;font-weight:400}
+.el-select-dropdown__item.is-selected{font-weight:600}
+.el-select__popper .el-scrollbar__wrap{max-height:min(274px,calc(100vh - 96px))}
+.sidebar-state{border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:center;font-size:12px;line-height:1.5;color:var(--ink)}
+.sidebar-state .state-dot{flex-shrink:0}

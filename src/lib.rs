@@ -7,6 +7,7 @@ pub mod localization;
 #[cfg(all(windows, feature = "portable"))]
 pub mod portable;
 pub mod runtime_paths;
+pub mod runtime_status;
 #[cfg(feature = "ai")]
 pub mod translation;
 #[cfg(windows)]

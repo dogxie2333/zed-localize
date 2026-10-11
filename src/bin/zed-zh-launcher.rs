@@ -193,9 +193,9 @@ mod desktop {
         let mut seen = HashSet::new();
         let mut dirty = false;
         let mut last_repair = Instant::now();
-        let mut last_scan = Instant::now() - Duration::from_secs(5);
+        let mut last_scan = Instant::now() - Duration::from_secs(2);
         while !stop.load(Ordering::Relaxed) {
-            if rx.recv_timeout(Duration::from_secs(5)).is_ok() {
+            if rx.recv_timeout(Duration::from_secs(1)).is_ok() {
                 dirty = true;
             }
             while rx.try_recv().is_ok() {
@@ -220,10 +220,9 @@ mod desktop {
                 dirty = false;
                 last_repair = Instant::now();
             }
-            // Patched shortcuts launch with the display engine immediately.
-            // Polling is only recovery for starting the original executable.
-            let scan_interval = if seen.is_empty() { 30 } else { 10 };
-            if last_scan.elapsed() < Duration::from_secs(scan_interval) {
+            // Process discovery also drives the status heartbeat. Never let
+            // an idle scan interval outlive the status freshness window.
+            if last_scan.elapsed() < Duration::from_secs(2) {
                 continue;
             }
             last_scan = Instant::now();
@@ -239,16 +238,29 @@ mod desktop {
             let next: HashSet<_> = zed_pids(exe).into_iter().collect();
             if config["watch_enabled"].as_bool() != Some(false) {
                 for pid in next.difference(&seen) {
+                    write_json(
+                        &state(root).join(format!("attachments/{pid}.json")),
+                        &json!({"pid":pid,"mode":"pending","updated":now()}),
+                    )?;
                     let _ = Command::new(std::env::current_exe()?)
                         .args(["--attach", &pid.to_string()])
                         .creation_flags(HIDDEN)
                         .spawn();
                 }
             }
-            let snapshots = zed_zh_addon::gadget_runtime::snapshots(root, Path::new(exe));
+            let snapshots =
+                zed_zh_addon::gadget_runtime::snapshots_for_pids(root, Path::new(exe), Some(&next));
+            let attachments: Vec<Value> = next
+                .iter()
+                .filter_map(|pid| {
+                    fs::read(state(root).join(format!("attachments/{pid}.json")))
+                        .ok()
+                        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                })
+                .collect();
             write_json(
                 &state(root).join("runtime-status.json"),
-                &json!({"controller_pid":std::process::id(),"engine":"rust-frida-gadget","sessions":snapshots,"updated":now()}),
+                &json!({"controller_pid":std::process::id(),"engine":"rust-frida-gadget","zed_pids":next,"sessions":snapshots,"attachments":attachments,"updated":now()}),
             )?;
             seen = next;
         }
@@ -320,35 +332,15 @@ mod desktop {
         Ok(tray_icon::Icon::from_rgba(pixels.to_vec(), 32, 32)?)
     }
     fn tray_state(root: &Path, failed: bool) -> (&'static str, &'static str) {
-        if failed {
-            return ("监控异常：请打开配置页面", "error");
-        }
-        if settings(root)["watch_enabled"].as_bool() == Some(false) {
-            return ("已暂停自动本地化", "paused");
-        }
-        if zed_zh_addon::localization::selected(&state(root)) == "en" {
-            return ("原文模式：English", "english");
-        }
         let status = fs::read(state(root).join("runtime-status.json"))
             .ok()
             .and_then(|data| serde_json::from_slice::<Value>(&data).ok());
-        if let Some(status) =
-            status.filter(|item| now() - item["updated"].as_f64().unwrap_or_default() < 15.0)
-            && let Some(sessions) = status["sessions"].as_array()
-        {
-            if sessions.iter().any(|item| {
-                ["chinese", "localized", "english"].contains(&item["mode"].as_str().unwrap_or(""))
-            }) {
-                return ("本地化已启用：Zed 运行中", "active");
-            }
-            if sessions
-                .iter()
-                .any(|item| item["mode"] == "unsupported-english")
-            {
-                return ("版本未适配：当前为英文", "unsupported");
-            }
-        }
-        ("补丁待命：等待 Zed 启动", "waiting")
+        zed_zh_addon::runtime_status::classify(
+            &status.unwrap_or(json!({})),
+            &settings(root),
+            failed,
+            now(),
+        )
     }
 
     fn watch(root: &Path) -> Result<()> {
@@ -385,6 +377,7 @@ mod desktop {
         let close_settings = MenuItem::new("关闭配置服务（保留本地化）", true, None);
         let launch = MenuItem::new("启动 Zed", true, None);
         let pause = MenuItem::new("暂停自动本地化", true, None);
+        let hide = MenuItem::new("隐藏托盘图标（继续运行）", true, None);
         let exit = MenuItem::new("退出补丁（不关闭 Zed）", true, None);
         menu.append_items(&[
             &status_item,
@@ -393,6 +386,7 @@ mod desktop {
             &close_settings,
             &launch,
             &pause,
+            &hide,
             &PredefinedMenuItem::separator(),
             &exit,
         ])?;
@@ -401,6 +395,8 @@ mod desktop {
             .with_tooltip("Zed 本地化补丁：正在启动")
             .with_icon(icon("waiting", taskbar_dark())?)
             .build()?;
+        let mut visible = settings(root)["show_tray_icon"].as_bool().unwrap_or(true);
+        tray.set_visible(visible)?;
         let stop = Arc::new(AtomicBool::new(false));
         let worker_stop = stop.clone();
         let worker_root = root.to_owned();
@@ -448,6 +444,12 @@ mod desktop {
                     let _ = Command::new(std::env::current_exe()?)
                         .creation_flags(HIDDEN)
                         .spawn();
+                } else if event.id == hide.id() {
+                    let mut config = settings(root);
+                    config["show_tray_icon"] = json!(false);
+                    write_json(&state(root).join("settings.json"), &config)?;
+                    tray.set_visible(false)?;
+                    visible = false;
                 } else if event.id == pause.id() {
                     let mut config = settings(root);
                     let enable = config["watch_enabled"].as_bool() == Some(false);
@@ -468,7 +470,12 @@ mod desktop {
                     let _ = zed_zh_addon::gadget_runtime::enable(root, enable);
                 }
             }
-            if last_status.elapsed() >= Duration::from_secs(5) {
+            if last_status.elapsed() >= Duration::from_secs(1) {
+                let desired = settings(root)["show_tray_icon"].as_bool().unwrap_or(true);
+                if desired != visible {
+                    tray.set_visible(desired)?;
+                    visible = desired;
+                }
                 while let Ok(value) = error_rx.try_recv() {
                     failed = value;
                 }
@@ -490,7 +497,7 @@ mod desktop {
                 }
                 write_json(
                     &state(root).join("tray-status.json"),
-                    &json!({"pid":std::process::id(),"state":text,"running":true,"registered":true,"shell_icon_visible":tray.rect().is_some(),"icon_theme":if dark {"dark"}else{"light"},"icon_mark":mark,"updated":now()}),
+                    &json!({"pid":std::process::id(),"state":text,"running":true,"registered":true,"visible":visible,"shell_icon_visible":visible && tray.rect().is_some(),"icon_theme":if dark {"dark"}else{"light"},"icon_mark":mark,"updated":now()}),
                 )?;
                 last_status = Instant::now();
                 let request = fs::read(state(root).join("tray-stop.json"))
@@ -520,7 +527,7 @@ mod desktop {
                 MsgWaitForMultipleObjectsEx(
                     0,
                     std::ptr::null(),
-                    5000,
+                    1000,
                     QS_ALLINPUT,
                     MWMO_INPUTAVAILABLE,
                 );
@@ -568,12 +575,32 @@ mod desktop {
             let pid = args.get(1).context("Missing PID")?.parse::<u32>()?;
             let config = settings(&root);
             let exe = Path::new(config["zed_exe"].as_str().unwrap_or("D:\\Zed\\Zed.exe"));
-            if !zed_zh_addon::gadget_runtime::snapshots(&root, exe)
+            let already_loaded = zed_zh_addon::gadget_runtime::snapshots(&root, exe)
                 .iter()
-                .any(|item| item["pid"].as_u64() == Some(pid as u64))
-            {
-                zed_zh_addon::gadget_runtime::attach(&root, exe, pid, None, true)?;
-            }
+                .any(|item| item["pid"].as_u64() == Some(pid as u64));
+            let mode = if already_loaded {
+                "attached"
+            } else {
+                match zed_zh_addon::gadget_runtime::attach(&root, exe, pid, None, true) {
+                    Ok(true) => "attached",
+                    Ok(false) => "unsupported",
+                    Err(_) => "failed",
+                }
+            };
+            write_json(
+                &state(&root).join(format!("attachments/{pid}.json")),
+                &json!({"pid":pid,"mode":mode,"updated":now()}),
+            )?;
+            return Ok(());
+        }
+        if args.first().is_some_and(|value| value == "--show-tray") {
+            let mut config = settings(&root);
+            config["show_tray_icon"] = json!(true);
+            write_json(&state(&root).join("settings.json"), &config)?;
+            let _ = Command::new(std::env::current_exe()?)
+                .arg("--watch")
+                .creation_flags(HIDDEN)
+                .spawn();
             return Ok(());
         }
         if args.first().is_some_and(|value| value == "--update-compat") {
@@ -588,18 +615,21 @@ mod desktop {
         if args.first().is_some_and(|value| value == "--show-menu") {
             return write_json(&state(&root).join("show-menu.json"), &json!({"time":now()}));
         }
-        let _ = Command::new(std::env::current_exe()?)
-            .arg("--watch")
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .creation_flags(HIDDEN)
-            .spawn();
+        if std::env::var("ZED_STATELESS").as_deref() != Ok("1") {
+            let _ = Command::new(std::env::current_exe()?)
+                .arg("--watch")
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .creation_flags(HIDDEN)
+                .spawn();
+        }
         if !state(&root).join("settings.json").is_file() || settings(&root)["initialized"] == false
         {
             return Ok(());
         }
         let mut config = settings(&root);
+        config["show_tray_icon"] = json!(true);
         let english = args.first().is_some_and(|value| value == "--english");
         config["watch_enabled"] = json!(!english);
         write_json(&state(&root).join("settings.json"), &config)?;
@@ -621,6 +651,10 @@ mod desktop {
             }
         };
         process.resume()?;
+        write_json(
+            &state(&root).join(format!("attachments/{}.json", process.pid)),
+            &json!({"pid":process.pid,"mode":match mode {"unsupported-english"=>"unsupported","attach-failed-english"=>"failed",_=>"attached"},"updated":now()}),
+        )?;
         write_json(
             &state(&root).join("last-launch.json"),
             &json!({"pid":process.pid,"launcher_pid":std::process::id(),"mode":mode,"updated":now()}),

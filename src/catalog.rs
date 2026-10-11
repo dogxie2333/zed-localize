@@ -139,31 +139,75 @@ pub fn make_plan(exe: &Path) -> Result<Plan> {
 }
 
 pub fn make_plan_with_scope(exe: &Path, extended: bool) -> Result<Plan> {
+    make_plan_for_language(exe, extended, None)
+}
+pub fn make_plan_for_language(
+    exe: &Path,
+    extended: bool,
+    locale: Option<(&Path, &str)>,
+) -> Result<Plan> {
     let file = File::open(exe)?;
     // Windows keeps the mapped file alive; no file offsets or raw references
     // escape this function. The caller rechecks the hash before applying.
     let binary = unsafe { Mmap::map(&file)? };
     let digest = hex::encode(Sha256::digest(&binary));
-    let pe = goblin::pe::PE::parse(&binary).context("Invalid PE image")?;
-    ensure!(
-        pe.is_64 && pe.header.coff_header.machine == 0x8664,
-        "Only Windows x64 is supported"
-    );
-    let data = pe
-        .sections
-        .iter()
-        .find(|s| s.name().ok() == Some(".rdata"))
-        .context("No .rdata section")?;
-    let start = data.pointer_to_raw_data as usize;
-    let size = data.size_of_raw_data as usize;
+    let (start, size, address, backend) = match goblin::Object::parse(&binary)? {
+        goblin::Object::PE(pe) => {
+            ensure!(
+                pe.is_64 && pe.header.coff_header.machine == 0x8664,
+                "Only Windows x64 is supported"
+            );
+            let data = pe
+                .sections
+                .iter()
+                .find(|section| section.name().ok() == Some(".rdata"))
+                .context("No .rdata section")?;
+            (
+                data.pointer_to_raw_data as usize,
+                data.size_of_raw_data as usize,
+                data.virtual_address as usize,
+                "experimental-equal-byte-rdata",
+            )
+        }
+        goblin::Object::Elf(elf) => {
+            ensure!(
+                elf.is_64 && elf.header.e_machine == goblin::elf::header::EM_X86_64,
+                "Only Linux x86_64 is supported"
+            );
+            ensure!(
+                elf.header.e_type == goblin::elf::header::ET_DYN,
+                "Linux backend requires a PIE executable"
+            );
+            let data = elf
+                .section_headers
+                .iter()
+                .find(|section| elf.shdr_strtab.get_at(section.sh_name) == Some(".rodata"))
+                .context("No ELF .rodata section")?;
+            (
+                data.sh_offset as usize,
+                data.sh_size as usize,
+                data.sh_addr as usize,
+                "experimental-linux-equal-byte-rodata",
+            )
+        }
+        _ => bail!("Unsupported executable format"),
+    };
     let raw = binary
         .get(start..start.checked_add(size).context("Section overflow")?)
         .context("Truncated data section")?;
-    let section = Section {
-        rva: data.virtual_address as usize,
-        size,
-    };
-    let catalog = embedded_catalog()?;
+    let section = Section { rva: address, size };
+    let mut catalog = embedded_catalog()?;
+    if let Some((root, language)) = locale {
+        let translations = crate::localization::messages(root, language)?;
+        catalog.messages.retain_mut(|message| {
+            if let Some(text) = translations[&message.source].as_str() {
+                message.translation = text.into();
+                true
+            } else {
+                false
+            }
+        });
+    }
     let targets: Targets = serde_json::from_str(include_str!("../data/approved-targets.json"))?;
     let target = targets.targets.iter().find(|target| {
         target.sha256 == digest
@@ -275,7 +319,7 @@ pub fn make_plan_with_scope(exe: &Path, extended: bool) -> Result<Plan> {
     Ok(Plan {
         extended,
         schema: 1,
-        backend: "experimental-equal-byte-rdata".into(),
+        backend: backend.into(),
         exe: exe.canonicalize()?.display().to_string(),
         sha256: digest,
         supported: target.is_some(),

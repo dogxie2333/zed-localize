@@ -226,6 +226,7 @@ async fn config(State(app): State<App>) -> Json<Value> {
         "ui_language",
         "translation_language",
         "translation_languages",
+        "show_tray_icon",
     ] {
         safe[field] = current[field].clone();
     }
@@ -239,9 +240,22 @@ async fn config(State(app): State<App>) -> Json<Value> {
     Json(json!({"config":safe,"folder":folder,"languages":languages["languages"]}))
 }
 async fn status(State(app): State<App>) -> Json<Value> {
-    Json(
-        json!({"tray":read(&app.state.join("tray-status.json")).unwrap_or(json!({})),"runtime":read(&app.state.join("runtime-status.json")).unwrap_or(json!({"sessions":[]}))}),
-    )
+    let tray = read(&app.state.join("tray-status.json")).unwrap_or(json!({}));
+    let runtime = read(&app.state.join("runtime-status.json")).unwrap_or(json!({}));
+    let code = if tray["running"] != true
+        || now() as f64 - tray["updated"].as_f64().unwrap_or_default() > 8.0
+    {
+        "stopped"
+    } else {
+        crate::runtime_status::classify(
+            &runtime,
+            &settings(&app.state),
+            tray["icon_mark"] == "error",
+            now() as f64,
+        )
+        .1
+    };
+    Json(json!({"tray":tray,"runtime":runtime,"display":{"code":code}}))
 }
 async fn ping(State(app): State<App>) -> Json<Value> {
     app.deadline.store(0, Ordering::Relaxed);
@@ -382,6 +396,7 @@ async fn startup(State(app): State<App>, Json(value): Json<Value>) -> Json<Value
     current["zed_exe"] = json!(exe);
     current["startup_mode"] = json!(mode);
     current["replace_shortcuts"] = json!(value["replace_shortcuts"].as_bool().unwrap_or(true));
+    current["show_tray_icon"] = json!(value["show_tray_icon"].as_bool().unwrap_or(true));
     current["initialized"] = json!(true);
     if write(&app.state.join("settings.json"), &current).is_err() {
         return reply("failed");

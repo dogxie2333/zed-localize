@@ -13,7 +13,7 @@ const t=computed(()=>messages[language.value]||messages['zh-CN']);
 const locale=computed(()=>({'zh-CN':zhCN,'zh-TW':zhTW,en}[language.value]));
 const providerNames=computed(()=>[{id:'deepseek',label:'DeepSeek'},{id:'glm',label:'GLM · BigModel'},{id:'zai',label:'GLM · Z.AI'},{id:'compatible',label:language.value==='en'?'OpenAI-compatible':language.value==='zh-TW'?'OpenAI 相容服務':'OpenAI 兼容服务'}]);
 const token=document.querySelector('meta[name=zed-zh-token]').content;
-let heartbeat;
+let heartbeat,statusTimer;
 async function api(path,data){
  const response=await fetch('/api/'+path,{method:data===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Zed-Zh-Token':token},...(data!==undefined?{body:JSON.stringify(data)}:{})});
  if(!response.ok)throw new Error('request');
@@ -30,19 +30,19 @@ async function changeTranslationLanguage(value){
 }
 function theme(){document.documentElement.classList.toggle('dark',dark.value);}
 watch(dark,theme);
-const state=computed(()=>runtime.value.tray?.running&&Date.now()/1000-(runtime.value.tray.updated||0)<20?(runtime.value.tray.icon_mark||'waiting'):'stopped');
+const state=computed(()=>runtime.value.display?.code||'checking');
 const noticeText=computed(()=>notice.value?(t.value[notice.value.code]||t.value.failed)+(notice.value.count!==undefined?' · '+notice.value.count:''):'');
-onMounted(async()=>{theme();try{const result=await api('config');config.value=result.config;folder.value=result.folder;translationLanguages.value=result.languages||[];language.value=config.value.ui_language||'zh-CN';document.documentElement.lang=language.value;aiLanguages.value=config.value.translation_languages||[];models.value=config.value.model?[config.value.model]:[];runtime.value=await api('status');}catch{notice.value={code:'failed'};}heartbeat=setInterval(()=>api('ping',{}).catch(()=>{}),5000);});
+onMounted(async()=>{theme();try{const result=await api('config');config.value=result.config;config.value.show_tray_icon=config.value.show_tray_icon!==false;folder.value=result.folder;translationLanguages.value=result.languages||[];language.value=config.value.ui_language||'zh-CN';document.documentElement.lang=language.value;aiLanguages.value=config.value.translation_languages||[];models.value=config.value.model?[config.value.model]:[];runtime.value=await api('status');}catch{notice.value={code:'failed'};}heartbeat=setInterval(()=>api('ping',{}).catch(()=>{}),5000);statusTimer=setInterval(()=>api('status').then(value=>runtime.value=value).catch(()=>{}),2000);});
 function leave(){fetch('/api/leave',{method:'POST',headers:{'Content-Type':'application/json','X-Zed-Zh-Token':token},body:'{}',keepalive:true}).catch(()=>{});}
 window.addEventListener('pagehide',leave);
-onBeforeUnmount(()=>{clearInterval(heartbeat);window.removeEventListener('pagehide',leave);});
+onBeforeUnmount(()=>{clearInterval(heartbeat);clearInterval(statusTimer);window.removeEventListener('pagehide',leave);});
 </script>
 <template>
  <ElConfigProvider :locale="locale">
  <aside class="sidebar">
   <div class="brand"><img src="/mark.svg" alt=""/><span>Localize</span></div>
   <nav aria-label="Navigation"><button v-for="name in ['startup','ai','runtime','help']" :key="name" :class="{selected:tab===name}" :aria-current="tab===name?'page':undefined" @click="tab=name;notice=null">{{t[name]}}</button></nav>
-  <div class="sidebar-bottom"><label>{{t.pageLanguage}}</label><ElSelect v-model="language" :aria-label="t.pageLanguage" @change="changeLanguage"><ElOption label="简体中文" value="zh-CN"/><ElOption label="繁體中文" value="zh-TW"/><ElOption label="English" value="en"/></ElSelect><button class="theme-button" :aria-label="t.theme" @click="dark=!dark">{{dark?'◐':'◑'}}</button></div>
+  <div class="sidebar-bottom"><div class="sidebar-state" role="status"><span class="state-dot"/>{{t[state]}}</div><label>{{t.pageLanguage}}</label><ElSelect v-model="language" :aria-label="t.pageLanguage" @change="changeLanguage"><ElOption label="简体中文" value="zh-CN"/><ElOption label="繁體中文" value="zh-TW"/><ElOption label="English" value="en"/></ElSelect><button class="theme-button" :aria-label="t.theme" @click="dark=!dark">{{dark?'◐':'◑'}}</button></div>
  </aside>
  <main class="content">
   <h1>{{t[tab]}}</h1>
@@ -55,7 +55,8 @@ onBeforeUnmount(()=>{clearInterval(heartbeat);window.removeEventListener('pagehi
    <label>{{t.mode}}</label>
    <ElRadioGroup v-model="config.startup_mode"><ElRadio value="auto">{{t.auto}}</ElRadio><ElRadio value="manual">{{t.manual}}</ElRadio></ElRadioGroup>
    <ElCheckbox v-model="config.replace_shortcuts">{{t.shortcuts}}</ElCheckbox>
-   <div class="actions"><ElButton type="primary" :disabled="busy" @click="action('startup',{folder,startup_mode:config.startup_mode,replace_shortcuts:!!config.replace_shortcuts})">{{t.saveStartup}}</ElButton><ElButton :disabled="busy" @click="action('launch',{})">{{t.launch}}</ElButton></div>
+   <ElCheckbox v-model="config.show_tray_icon">{{t.showTray}}</ElCheckbox>
+   <div class="actions"><ElButton type="primary" :disabled="busy" @click="action('startup',{folder,startup_mode:config.startup_mode,replace_shortcuts:!!config.replace_shortcuts,show_tray_icon:!!config.show_tray_icon})">{{t.saveStartup}}</ElButton><ElButton :disabled="busy" @click="action('launch',{})">{{t.launch}}</ElButton></div>
   </section>
   <section v-show="tab==='ai'" class="panel">
    <label>{{t.aiLanguages}}</label><ElSelect v-model="aiLanguages" multiple collapse-tags :aria-label="t.aiLanguages" :placeholder="t.currentLanguage"><ElOption v-for="item in translationLanguages.filter(item=>item.id!=='en')" :key="item.id" :label="item.name" :value="item.id"/></ElSelect>

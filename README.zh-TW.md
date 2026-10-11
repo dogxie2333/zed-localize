@@ -4,6 +4,8 @@
 
 為 **官方 Zed** 載入多語言介面，**跟隨官方主線，保留官方更新管道**。
 
+**Windows 版是獨立於 Zed 主程式的 DLL 注入工具。** 啟動器將官方 Frida Gadget DLL 注入 Zed 處理程序，在記憶體顯示層替換文字，不修改磁碟上的官方 Zed.exe，也不是 Zed 擴充套件。
+
 ## 使用
 
 在 [Releases](https://github.com/dogxie2333/zed-localize/releases) 下載 `Zed-Localize.exe` 或可攜 ZIP，放在固定、可寫的資料夾。
@@ -35,3 +37,7 @@ Rust 負責入口、系統匣與按需設定服務，網頁復用 Vue / Element 
 構建需 Rust 1.99 GNU、Node、Python（僅維護／構建）與 MinGW：`packaging/build-portable.ps1`。
 
 自有程式碼 **MIT**；社群譯文與 Zed 衍生素材保留 **GPL-3.0** 和上游聲明。[授權](THIRD_PARTY_NOTICES.md) · [致謝](ACKNOWLEDGEMENTS.md)
+
+## Ubuntu 24.04 實驗版
+
+提供 x86_64 `.deb` 與可攜 `.tar.gz`，採獨立 Rust 啟動器及受限 ptrace 等長記憶體資料補丁。指定 Zed 1.23.2 包有 664 條簡體中文候選，各語言覆蓋不同。暫不含 Linux 系統匣和網頁設定；編輯器內部重新啟動後需由工具再次啟動。見 [Linux 使用說明](docs/LINUX.md)。

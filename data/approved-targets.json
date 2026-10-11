@@ -1,10 +1,21 @@
 {
   "schema": 1,
-  "targets": [{
-    "sha256": "d7afb758b045958838d843b95dd28c41554efd810c0f15012cf0069ff8046781",
-    "version": "1.23.2",
-    "source_commit": "c0199504b9cce79bc27524950022ed701bc3ebd5",
-    "status": "experimental",
-    "architecture": "x86_64"
-  }]
+  "targets": [
+    {
+      "sha256": "d7afb758b045958838d843b95dd28c41554efd810c0f15012cf0069ff8046781",
+      "version": "1.23.2",
+      "source_commit": "c0199504b9cce79bc27524950022ed701bc3ebd5",
+      "status": "experimental",
+      "architecture": "x86_64"
+    },
+    {
+      "sha256": "9c732953934a4b8e3f9523401091a13ae8d5b5662c3ee38dd789fe4a2034357b",
+      "version": "1.23.2",
+      "source_commit": "c0199504b9cce79bc27524950022ed701bc3ebd5",
+      "status": "experimental",
+      "architecture": "x86_64",
+      "platform": "linux",
+      "upstream_archive_sha256": "cabddd5af2b26a19633ea39f5dde070e2aad204bb815bfa74cb65073ffd5ff39"
+    }
+  ]
 }

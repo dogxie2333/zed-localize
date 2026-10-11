@@ -4,6 +4,8 @@
 
 Localize **official Zed** while keeping its **mainline releases and official updater**.
 
+**The Windows edition is a standalone DLL injection tool, separate from Zed itself.** It injects the official Frida Gadget DLL into the Zed process and translates the in-memory display path. It leaves the official Zed.exe on disk unchanged and is not a Zed extension.
+
 ## Getting started
 
 Download `Zed-Localize.exe` or the portable ZIP from [Releases](https://github.com/dogxie2333/zed-localize/releases). Keep it in a writable, permanent folder.
@@ -35,3 +37,7 @@ Rust handles startup, tray and on-demand settings; Vue / Element Plus handle the
 Build with Rust 1.99 GNU, Node, Python for maintenance/build only, and MinGW: `packaging/build-portable.ps1`.
 
 Original code: **MIT**. Community translations and Zed-derived assets retain **GPL-3.0** and upstream notices. [Licenses](THIRD_PARTY_NOTICES.md) · [Acknowledgements](ACKNOWLEDGEMENTS.md)
+
+## Ubuntu 24.04 preview
+
+x86_64 `.deb` and portable `.tar.gz` use a standalone Rust launcher with a restricted ptrace memory-data backend. The verified Zed 1.23.2 binary has 664 Simplified Chinese candidates. Coverage differs per language. Linux does not yet include the Windows display hook, tray or web settings; relaunch through this tool after an internal editor restart. See [Linux usage](docs/LINUX.md).

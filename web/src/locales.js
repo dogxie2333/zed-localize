@@ -27,11 +27,11 @@ export const messages = {
     "translate": "检查更新并翻译",
     "refresh": "刷新",
     "details": "详细数据",
-    "waiting": "等待 Zed 启动",
-    "active": "翻译已启用",
+    "waiting": "Zed 未运行",
+    "active": "Zed 已运行 · 翻译已加载",
     "paused": "翻译已暂停",
     "error": "监控异常",
-    "unsupported": "版本尚未适配",
+    "unsupported": "Zed 已运行 · 当前版本未适配",
     "stopped": "托盘未运行",
     "helpTitle": "使用方法",
     "steps": [
@@ -68,7 +68,11 @@ export const messages = {
     "aiLanguages": "AI 翻译语言",
     "currentLanguage": "当前 Zed 翻译语言",
     "translationLanguageSaved": "语言已保存，重启 Zed 完整生效",
-    "english": "原文模式"
+    "english": "原文模式",
+    "loading": "Zed 已运行 · 翻译加载中",
+    "checking": "正在确认 Zed 状态",
+    "partial": "Zed 已运行 · 部分窗口加载中",
+    "showTray": "显示托盘图标"
   },
   "zh-TW": {
     "brand": "Localize",
@@ -98,11 +102,11 @@ export const messages = {
     "translate": "檢查更新並翻譯",
     "refresh": "重新整理",
     "details": "詳細資料",
-    "waiting": "等待 Zed 啟動",
-    "active": "翻譯已啟用",
+    "waiting": "Zed 未執行",
+    "active": "Zed 已執行 · 翻譯已載入",
     "paused": "翻譯已暫停",
     "error": "監控異常",
-    "unsupported": "版本尚未適配",
+    "unsupported": "Zed 已執行 · 目前版本未適配",
     "stopped": "系統匣未執行",
     "helpTitle": "使用方法",
     "steps": [
@@ -139,7 +143,11 @@ export const messages = {
     "aiLanguages": "AI 翻譯語言",
     "currentLanguage": "目前 Zed 翻譯語言",
     "translationLanguageSaved": "語言已儲存，重新啟動 Zed 完整生效",
-    "english": "原文模式"
+    "english": "原文模式",
+    "loading": "Zed 已執行 · 翻譯載入中",
+    "checking": "正在確認 Zed 狀態",
+    "partial": "Zed 已執行 · 部分視窗載入中",
+    "showTray": "顯示系統匣圖示"
   },
   "en": {
     "brand": "Localize",
@@ -169,11 +177,11 @@ export const messages = {
     "translate": "Check updates and translate",
     "refresh": "Refresh",
     "details": "Details",
-    "waiting": "Waiting for Zed",
-    "active": "Translation enabled",
+    "waiting": "Zed is not running",
+    "active": "Zed running · Translation loaded",
     "paused": "Paused",
     "error": "Monitor error",
-    "unsupported": "Version awaiting verification",
+    "unsupported": "Zed running · Version not verified",
     "stopped": "Tray is not running",
     "helpTitle": "Getting started",
     "steps": [
@@ -210,6 +218,10 @@ export const messages = {
     "aiLanguages": "AI translation languages",
     "currentLanguage": "Current Zed language",
     "translationLanguageSaved": "Language saved. Restart Zed to refresh all text.",
-    "english": "Original English"
+    "english": "Original English",
+    "loading": "Zed running · Loading translation",
+    "checking": "Checking Zed status",
+    "partial": "Zed running · Some windows loading",
+    "showTray": "Show tray icon"
   }
 };

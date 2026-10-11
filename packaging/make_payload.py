@@ -6,6 +6,7 @@ build=Path(os.environ.get('ZED_ZH_BUILD_DIR',root.parent/'.build-cache/zed-zh-ad
 build.mkdir(parents=True,exist_ok=True)
 target=Path(json.loads(subprocess.check_output(['cargo','metadata','--no-deps','--format-version','1'],cwd=root,text=True,encoding='utf-8'))['target_directory'])
 files={'runtime/install-startup.ps1':root/'runtime/install-startup.ps1','zed-zh-settings.exe':target/'release/zed-zh-settings.exe','assets/catalog.json':root/'assets/catalog.json','assets/LICENSE.md':root/'assets/LICENSE.md'}
+files['assets/public-ui-keys.json']=root/'assets/public-ui-keys.json'
 for name in ('ui_overlay.js','gadget_lifecycle.js','test_gadget_restart.js'):
     files['tools/'+name]=root/'tools'/name
 for source in (root/'assets/locales').glob('*.json'):
