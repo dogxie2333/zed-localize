@@ -40,4 +40,6 @@ Rust 負責入口、系統匣與按需設定服務，網頁復用 Vue / Element 
 
 ## Ubuntu 24.04 實驗版
 
-提供 x86_64 `.deb` 與可攜 `.tar.gz`，採獨立 Rust 啟動器及受限 ptrace 等長記憶體資料補丁。指定 Zed 1.23.2 包有 664 條簡體中文候選，各語言覆蓋不同。暫不含 Linux 系統匣和網頁設定；編輯器內部重新啟動後需由工具再次啟動。見 [Linux 使用說明](docs/LINUX.md)。
+提供 x86_64 `.deb` 與可攜 `.tar.gz`，採獨立 Rust 啟動器及受限 ptrace 等長記憶體資料補丁。指定 Zed 1.23.2 包有 664 條簡體中文候選，各語言覆蓋不同。暫不含 Linux 系統匣和網頁設定；編輯器內部重新啟動後需由工具再次啟動。
+
+啟動前自動等待 Wayland 輸入裝置就緒，逾時且有 X11 時退回 X11。可用 `--display-server wayland` 或 `--display-server x11` 手動指定。見 [Linux 使用說明](docs/LINUX.md)。

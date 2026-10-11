@@ -3,6 +3,8 @@ pub mod catalog;
 pub mod configuration;
 #[cfg(windows)]
 pub mod gadget_runtime;
+#[cfg(target_os = "linux")]
+pub mod linux_display;
 pub mod localization;
 #[cfg(all(windows, feature = "portable"))]
 pub mod portable;

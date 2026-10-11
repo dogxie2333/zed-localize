@@ -6,10 +6,14 @@
 
 ```sh
 # Debian 包
-sudo apt install ./zed-localize_0.3.1-alpha.1_amd64.deb
+sudo apt install ./zed-localize_0.3.1-alpha.2_amd64.deb
 
 # 保留原设置、登录与插件
 /opt/zed-localize/zed-localize-linux --zed "$HOME/.local/zed.app/libexec/zed-editor" --language zh-CN launch
+
+# 手动指定显示协议
+/opt/zed-localize/zed-localize-linux --display-server wayland launch
+/opt/zed-localize/zed-localize-linux --display-server x11 launch
 
 # 查看候选，不修改进程
 /opt/zed-localize/zed-localize-linux --zed "$HOME/.local/zed.app/libexec/zed-editor" plan
@@ -17,7 +21,11 @@ sudo apt install ./zed-localize_0.3.1-alpha.1_amd64.deb
 
 便携版解压后运行目录中的 `zed-localize-linux`；可用 `--zed` 指定官方 `zed-editor`，`--language` 指定 13 种目标语言，English 使用 `en`。资源默认从工具目录读取。Ubuntu 菜单中也有独立的 Zed Localize 入口；原 Zed 入口保留。
 
-中文建议安装 `fonts-noto-cjk`。正常用户执行，不使用 root。WSLg 下本次官方 1.23.2 的 Wayland 启动异常，X11 对照及补丁启动通过；可用 `env -u WAYLAND_DISPLAY ... launch` 选择 X11。普通 Ubuntu Wayland 桌面尚未验收。
+中文建议安装 `fonts-noto-cjk`。正常用户执行，不使用 root。默认 `--display-server auto`：Wayland 输入设备已就绪时立即启动；未就绪最多等待 5 秒，超时且存在 `DISPLAY` 时仅为本次启动回退 X11。手动指定 Wayland 时超时会报错，不切换协议。检查仅发生在启动前，不常驻、不调用 AI。
+
+WSLg 冷启动测试发现：socket 先出现，`wl_seat` 约 3 秒后才发布。指定官方 Zed 1.23.2 会在 seat 缺失时解包空值崩溃；设备就绪后原版与补丁版均可启动 Wayland。此前的 Wayland 失败来自这次启动时序，不能推广为所有 Ubuntu Wayland 桌面不兼容。完整 Ubuntu 桌面仍待验收。
+
+X11 与 Wayland 均可走 Vulkan，但本机 WSLg 的两个测试都选择了 `llvmpipe` 软件渲染，尚未验证硬件 GPU 加速。启动检查只解决输入设备初始化，不修改系统图形驱动。
 
 ## 范围
 

@@ -7,3 +7,5 @@ Rust 启动器与托盘管理官方 Zed 启动、快捷方式和兼容检查。�
 配置页复用 Axum、Vue、Element Plus、rfd 与 keyring，按需启动并在关闭后释放。AI 复用 async-openai 与 redb，使用公开源码语境和各语言的上游术语表。批处理与缓存按语言隔离，草稿不自动进入运行词典。
 
 官方 Zed 更新渠道保持原样。新二进制必须单独验证哈希与布局入口；更新译文不能批准新哈希。未知版本保留英文。维护端保留社区 Python 提取和校验工具，用户运行包不携带 Python。
+
+Linux 启动前复用 wayland-client 0.31.15（Smithay/wayland-rs，MIT，纯 Rust 协议实现），检查 compositor 是否已发布 wl_seat。检查有 5 秒上限，只在启动时运行；默认优先 Wayland，超时且存在 X11 时仅对子进程回退。依赖固定在 Cargo.lock，升级先运行显示选择及隔离启动回归，回滚可重装前一实验包。x86_64 已验证，ARM64 未验证；不增加常驻服务。

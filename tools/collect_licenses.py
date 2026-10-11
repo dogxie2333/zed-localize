@@ -8,9 +8,11 @@ import subprocess
 p = argparse.ArgumentParser()
 p.add_argument("--output", type=Path, required=True)
 p.add_argument("--toolchain")
+p.add_argument("--target", help="Collect only the selected target's default-feature dependencies")
 args = p.parse_args()
 command = ["cargo"] + (["+" + args.toolchain] if args.toolchain else [])
-metadata = json.loads(subprocess.check_output(command + ["metadata", "--locked", "--format-version", "1", "--all-features"], text=True, encoding="utf-8"))
+scope = ["--filter-platform", args.target] if args.target else ["--all-features"]
+metadata = json.loads(subprocess.check_output(command + ["metadata", "--locked", "--format-version", "1"] + scope, text=True, encoding="utf-8"))
 args.output.mkdir(parents=True, exist_ok=True)
 notices = []
 for package in metadata["packages"]:

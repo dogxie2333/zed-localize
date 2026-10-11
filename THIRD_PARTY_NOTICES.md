@@ -9,6 +9,7 @@
 | Microsoft/vscode-loc | 社区项目所引资料 | MIT | 本地化资料，保留社区来源 |
 | Frida Gadget | 17.23.3 | wxWindows Library Licence 3.1，子组件按自身许可 | 官方显示运行时 |
 | dll-syringe | 0.18.2 | MIT | 成熟 DLL 加载库 |
+| Smithay/wayland-rs / wayland-client | 0.31.15 | MIT | Linux 单次启动的 Wayland registry 就绪检查 |
 | Vue / Element Plus / Vite | 3.5.43 / 2.14.7 / 8.3.4 | MIT | 静态页面、语言包与构建 |
 | Axum / tower-http / Tokio | Cargo.lock | MIT | 按需服务、静态资源与异步运行 |
 | async-openai | 0.42.2 | MIT | OpenAI 兼容成熟 SDK，模型列表与翻译 |

@@ -11,6 +11,7 @@ mod linux {
         time::Instant,
     };
     use zed_zh_addon::catalog::{Plan, hash_file, make_plan_for_language};
+    use zed_zh_addon::linux_display::{self, DisplayServer};
 
     #[derive(Parser)]
     #[command(
@@ -22,6 +23,8 @@ mod linux {
         zed: Option<PathBuf>,
         #[arg(long, default_value = "zh-CN")]
         language: String,
+        #[arg(long, value_enum, default_value_t)]
+        display_server: DisplayServer,
         #[arg(long)]
         resources: Option<PathBuf>,
         #[command(subcommand)]
@@ -214,7 +217,10 @@ mod linux {
         if let Action::Launch { arguments } = &args.command
             && args.language == "en"
         {
-            Command::new(exe).args(arguments).spawn()?;
+            let mut command = Command::new(exe);
+            command.args(arguments);
+            linux_display::prepare(&mut command, args.display_server)?;
+            command.spawn()?;
             return Ok(());
         }
         let plan = make_plan_for_language(&exe, true, Some((&root, &args.language)))?;
@@ -229,7 +235,10 @@ mod linux {
         if !plan.supported {
             if let Action::Launch { arguments } = &args.command {
                 eprintln!("Unverified official version; opening original UI");
-                Command::new(exe).args(arguments).spawn()?;
+                let mut command = Command::new(exe);
+                command.args(arguments);
+                linux_display::prepare(&mut command, args.display_server)?;
+                command.spawn()?;
                 return Ok(());
             }
             bail!("Unverified Linux binary; no memory changes allowed");
@@ -237,7 +246,9 @@ mod linux {
         ensure!(!plan.entries.is_empty(), "No safe translation candidates");
         let start = Instant::now();
         let mut command = Command::new(&exe);
+        let mut display_server = None;
         if let Action::Launch { arguments } = &args.command {
+            display_server = Some(linux_display::prepare(&mut command, args.display_server)?);
             command.args(arguments);
         }
         if matches!(args.command, Action::TestMemory) {
@@ -283,7 +294,7 @@ mod linux {
         owned.armed = false;
         println!(
             "{}",
-            json!({"pid":pid,"language":args.language,"applied":plan.entries.len(),"seconds":start.elapsed().as_secs_f64()})
+            json!({"pid":pid,"language":args.language,"applied":plan.entries.len(),"display_server":display_server,"seconds":start.elapsed().as_secs_f64()})
         );
         Ok(())
     }

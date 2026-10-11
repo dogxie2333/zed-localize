@@ -48,4 +48,4 @@
 
 提供 x86_64 `.deb` 与便携 `.tar.gz`。Linux 使用独立 Rust 启动器和 ptrace 等长内存数据补丁，当前为指定 Zed 1.23.2 包提供 664 条简体中文安全候选；各语言覆盖不同。该后端不等同于 Windows 显示钩子，暂不含 Linux 托盘/网页设置，编辑器内部重启后需重新从工具启动。
 
-[Linux 使用说明](docs/LINUX.md)。
+启动前自动等待 Wayland 输入设备就绪，超时且有 X11 时回退。可用 `--display-server wayland` 或 `--display-server x11` 手动指定。[Linux 使用说明](docs/LINUX.md)。

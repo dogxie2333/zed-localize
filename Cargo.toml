@@ -45,6 +45,7 @@ windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Secu
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+wayland-client = "=0.31.15"
 
 [dev-dependencies]
 tempfile = "3"

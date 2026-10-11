@@ -40,4 +40,6 @@ Original code: **MIT**. Community translations and Zed-derived assets retain **G
 
 ## Ubuntu 24.04 preview
 
-x86_64 `.deb` and portable `.tar.gz` use a standalone Rust launcher with a restricted ptrace memory-data backend. The verified Zed 1.23.2 binary has 664 Simplified Chinese candidates. Coverage differs per language. Linux does not yet include the Windows display hook, tray or web settings; relaunch through this tool after an internal editor restart. See [Linux usage](docs/LINUX.md).
+x86_64 `.deb` and portable `.tar.gz` use a standalone Rust launcher with a restricted ptrace memory-data backend. The verified Zed 1.23.2 binary has 664 Simplified Chinese candidates. Coverage differs per language. Linux does not yet include the Windows display hook, tray or web settings; relaunch through this tool after an internal editor restart.
+
+Startup waits up to five seconds for Wayland input readiness, then falls back to X11 when available. Select a protocol explicitly with `--display-server wayland` or `--display-server x11`. See [Linux usage](docs/LINUX.md).

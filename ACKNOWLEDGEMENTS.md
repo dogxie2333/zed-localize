@@ -5,6 +5,7 @@
 - **Microsoft / vscode-loc**：社区项目引用的本地化资料。
 - **Frida**：官方 Gadget 与显示拦截运行时。
 - **dll-syringe、windows-rs、notify、tray-icon、muda**：原生 Windows 进程、事件、托盘和菜单能力。
+- **Smithay / wayland-rs**：Linux 启动时的 Wayland 输入设备就绪检查。
 - **Vue、Element Plus、Vite**：设置页组件、语言包与构建工具。
 - **Axum、tower-http、Tokio**：按需本地配置服务与 HTTP 基础能力。
 - **async-openai、reqwest、redb**：成熟 AI 接口、传输和语义缓存。

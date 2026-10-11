@@ -21,3 +21,11 @@ Windows 12 项 Rust 测试、严格 Clippy、原生 SDK/缓存测试通过。真
 网页暗色下拉列表高度 274 px、内容 488 px，正常内部滚动，末尾 Türkçe 可选择。selected wrapper/placeholder 的 transform 均为 none；未编辑用户配置或凭据来执行网页测试。
 
 Ubuntu 24.04 x86_64：官方 release 压缩包摘要与 GitHub digest 一致；简体 664、繁体 634、日语 16、德语 51 条候选通过自建进程故障回滚和还原验证。最终新增错误原文拒绝测试通过。X11/WSLg 隔离启动后工具退出、编辑器继续运行；未宣称全部 UI 视觉通过。原版 Wayland 在该 WSLg 环境同样启动异常，未对官方程序另做修补。详见 LINUX.md。
+
+## 2026-10-11 Wayland 启动就绪修复
+
+复用 Ubuntu wayland-info 1.2.0：冷启动 registry 没有 wl_seat；约三秒后出现 v7 seat。原版提前启动在官方 client.rs:923 崩溃，设备就绪后原版与补丁均可启动。WSLg 所用 Microsoft/weston 2318fecaeac1f1a2d5a7a042c34d931c71dae04c 的 RDP 激活路径创建 seat，与本机 Weston 键盘初始化时间一致。
+
+启动器新增成熟 wayland-client 就绪检查和 auto/wayland/x11 选择。Linux 8 项单元测试、Windows 12 项通过；Linux Clippy 通过。真实隔离编辑器六项回归通过：冷启动自动等待后用 Wayland、强制 Wayland、强制 X11、缺失 compositor 回退、接受连接但不回应的 compositor 超时回退、强制 Wayland 超时报错且不启动编辑器。存活检查均在启动器退出后进行，测试只结束自己创建的编辑器。
+
+冷启动自动模式约 3.28 秒；就绪后的强制 Wayland / X11 约 0.57 秒；故障回退约 5.5 秒。包括启动器规划和内存校验，不是帧耗时。本机仍选择 llvmpipe 软件渲染，未验收硬件 GPU 或完整 Ubuntu 桌面视觉。脚本：`tools/test_linux_launch.py`，需显式提供测试官方包、资源路径和隔离目录，以普通桌面用户执行。
