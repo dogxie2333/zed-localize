@@ -1,4 +1,4 @@
-"""Use mature Dulwich for public Git checkouts; portable runtime needs no Git CLI."""
+"""Mature Git/Dulwich maintenance helpers; end-user runtime uses neither."""
 from pathlib import Path
 import os
 import shutil

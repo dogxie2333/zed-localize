@@ -20,9 +20,9 @@ class CheckoutTests(unittest.TestCase):
                           ('core.autocrlf','false'),('core.filemode','false'),('core.symlinks','false')]:
             self.run_git('config',key,value)
         for name in ('included','omitted'): (self.root/name).mkdir()
-        (self.root/'.gitattributes').write_text('*.rs text eol=lf\n',encoding='utf-8')
-        (self.root/'included/public.rs').write_text('pub fn menu() {}\n',encoding='utf-8')
-        (self.root/'omitted/other.rs').write_text('pub fn other() {}\n',encoding='utf-8')
+        (self.root/'.gitattributes').write_text('*.rs text eol=crlf\n',encoding='utf-8')
+        (self.root/'included/public.rs').write_text('pub fn menu() {}\n',encoding='utf-8',newline='\r\n')
+        (self.root/'omitted/other.rs').write_text('pub fn other() {}\n',encoding='utf-8',newline='\r\n')
         self.run_git('add','.')
         self.run_git('commit','-qm','Public test fixture')
 
