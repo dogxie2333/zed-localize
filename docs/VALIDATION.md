@@ -37,3 +37,11 @@ Ubuntu 24.04 x86_64：官方 release 压缩包摘要与 GitHub digest 一致；�
 复用 Mesa 已有环境变量，单次启动设置 `GALLIUM_DRIVER=d3d12` 与 `MESA_D3D12_DEFAULT_ADAPTER_NAME`。真实隔离 Zed 的 NVIDIA / X11、NVIDIA / Wayland、AMD / Wayland 三项均选择 D3D12 硬件的 Gl 后端，通过 GPUI 表面配置，`Using GPU` 中 `is_software_emulated: false`，启动器退出六秒后仍存活。简体中文补丁仍应用 664 条。`glxinfo -B` 同时报告 NVIDIA `Accelerated: yes`。
 
 仅在测试进程设置环境变量，未更改显卡驱动、WSLg 服务或用户全局环境；未改官方 Zed 文件。没有输入、滚动帧率或完整桌面视觉验收。详见 LINUX.md 的 WSLg 启动命令。
+
+## 2026-10-13 Windows Zed 1.23.3 适配
+
+用户官方更新后本机 Zed.exe SHA-256 为 563a876bacb9e0070050828c52c07dc6c934fae06a3ccbae9763704d7decf6b0，版本 1.23.3，源码提交 96a1b1b5389efff473fc2306f7f8c690f2e1a417。旧清单不含该哈希，启动器按设计进入 unsupported-english。
+
+隔离公开文案调用栈验证 UI 标记迁移到 0x5c0a9d0；该位置周围 96 字节与已验证 1.23.2 的 0x5c09ef0 完全相同。实际显示观察到 25 种文案替换；DirectWrite 受控测试 2100 次通过，非 UI 调用拒绝通过。真实 Rust / Frida Gadget 测试通过，父进程 23、重启子进程 25 种译文，English / 繁体 / 日语切换通过。所有测试使用隔离资料，只终止测试创建的进程，未修改官方磁盘文件。
+
+仅批准 Windows 显示适配；未增加等长 rodata 或 Linux 1.23.3 支持。该适配可通过兼容清单更新加载，不要求用户重装整个工具。尚未宣称全部界面视觉或所有后续版本自动兼容。
