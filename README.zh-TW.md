@@ -1,45 +1,57 @@
-# Zed Localize
+<div align="center">
+<img src="docs/brand.svg" alt="Zed Localize" width="520">
 
-[简体中文](README.md) · [English](README.en.md) · 繁體中文
+跟隨官方主線的 Zed 介面本地化工具。
 
-為 **官方 Zed** 載入多語言介面，**跟隨官方主線，保留官方更新管道**。
+[![Release](https://img.shields.io/github/v/release/dogxie2333/zed-localize?color=black)](https://github.com/dogxie2333/zed-localize/releases/latest) [![CI](https://img.shields.io/github/actions/workflow/status/dogxie2333/zed-localize/ci.yml?branch=main&label=CI&color=black)](https://github.com/dogxie2333/zed-localize/actions/workflows/ci.yml) [![MIT](https://img.shields.io/badge/code-MIT-black)](LICENSE)
 
-**Windows 版是獨立於 Zed 主程式的 DLL 注入工具。** 啟動器將官方 Frida Gadget DLL 注入 Zed 處理程序，在記憶體顯示層替換文字，不修改磁碟上的官方 Zed.exe，也不是 Zed 擴充套件。
+**[下載](https://github.com/dogxie2333/zed-localize/releases/latest) · [使用說明](docs/LOCAL_USAGE.md) · [問題回報](https://github.com/dogxie2333/zed-localize/issues)**
+</div>
 
-## 使用
+[简体中文](README.md) · [English](README.en.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · [Italiano](README.it.md) · [Português (Brasil)](README.pt-BR.md) · [Русский](README.ru.md) · [Polski](README.pl.md) · [Čeština](README.cs.md) · [Türkçe](README.tr.md)
 
-在 [Releases](https://github.com/dogxie2333/zed-localize/releases) 下載 `Zed-Localize.exe` 或可攜 ZIP，放在固定、可寫的資料夾。
+## 下載
 
-1. 執行工具，選擇 Zed 安裝資料夾。
-2. 選擇翻譯語言、自啟或手動，儲存設定。
-3. 啟動 Zed，之後照常使用原捷徑。
+| 平台 | 下載檔案 |
+|---|---|
+| Windows x64 | [Zed-Localize.exe](https://github.com/dogxie2333/zed-localize/releases/latest/download/Zed-Localize.exe) · [ZIP](https://github.com/dogxie2333/zed-localize/releases/latest/download/zed-localize-windows-x64.zip) |
+| Ubuntu 24.04 x86_64 | [DEB](https://github.com/dogxie2333/zed-localize/releases/latest) · [tar.gz](https://github.com/dogxie2333/zed-localize/releases/latest/download/zed-localize-ubuntu24-x86_64.tar.gz) |
 
-系統匣右鍵可開啟設定、暫停或結束。設定頁僅首次初始化或手動開啟時執行，關閉後釋放服務。原設定、登入與擴充套件繼續使用。
+## 開始使用
 
-## 語言與 AI
+**Windows** · `Zed-Localize.exe`
 
-復用 13 種社群譯文：簡體／繁體中文、日語、韓語、德語、法語、西班牙語、義大利語、巴西葡萄牙語、俄語、波蘭語、捷克語、土耳其語。English 恢復原文；切換後重新啟動 Zed 完整生效。
+1. 選擇 Zed 安裝資料夾與翻譯語言。
+2. 選擇自啟或手動，儲存並啟動 Zed。
+3. 系統匣右鍵可開啟設定、暫停或結束。
 
-Zed 翻譯語言與設定頁語言各自切換；設定頁支援簡體、繁體與 English。受 UTF-16 長度和安全範圍限制，部分文字保留英文，歐美語言覆蓋較少。[語言統計](data/locales.json) 是安全候選數量。
+Windows 版是獨立於 Zed 主程式的 DLL 注入工具，復用 Frida Gadget，在記憶體顯示層翻譯文字。不是 Zed 擴充套件，不修改官方程式檔案。
 
-可選 DeepSeek、GLM 或 OpenAI 相容介面，復用 async-openai SDK。一次選擇多種目標語言，依原始碼語境與術語批次翻譯新增文字，按語言、模型及校驗版本快取。日常顯示只讀本機詞典；AI 產生待審草稿。金鑰只保存在記憶體或自行選擇的 Windows 認證管理員。
+**Linux**
 
-## 更新與檔案
+```sh
+sudo apt install ./zed-localize_0.4.0_amd64.deb
+/opt/zed-localize/zed-localize-linux --language zh-TW launch
+```
 
-照常更新官方 Zed；已驗證版本在啟動與重啟時載入補丁。未知版本先使用英文，等待驗證適配。目前驗證目標為指定 Windows x64 Zed 1.23.2 包。
+Linux 套件使用命令列與等長記憶體補丁，覆蓋部分介面；暫不提供系統匣和網頁設定。支援範圍見使用說明。 [使用說明](docs/LINUX.md)
 
-Rust 負責入口、系統匣與按需設定服務，網頁復用 Vue / Element Plus，不需另裝執行環境。更新工具時保留旁邊的 `zed-zh-data/`，歷史名稱用於相容既有設定。
+## 功能
 
-[使用說明](docs/LOCAL_USAGE.md) · [效能](docs/PERFORMANCE.md)
+- **Zed 翻譯語言 / 設定頁語言** — 简体中文 · English · 繁體中文 · 日本語 · 한국어 · Deutsch · Français · Español · Italiano · Português (Brasil) · Русский · Polski · Čeština · Türkçe
+- **啟動方式** — 開機自啟 / 手動啟動; 顯示系統匣圖示.
+- **人工智慧翻譯** — DeepSeek / GLM / OpenAI; AI 翻譯語言.
 
-## 開發與授權
+保留原設定、登入與擴充套件。設定頁按需開啟，日常顯示只查本機字典。
 
-構建需 Rust 1.99 GNU、Node、Python（僅維護／構建）與 MinGW：`packaging/build-portable.ps1`。
+適用於官方 Windows Zed，自動偵測安裝結構並保留官方更新管道。AI 批次產生待審譯文，依語言快取。受補丁長度限制，部分文字保留英文。
 
-自有程式碼 **MIT**；社群譯文與 Zed 衍生素材保留 **GPL-3.0** 和上游聲明。[授權](THIRD_PARTY_NOTICES.md) · [致謝](ACKNOWLEDGEMENTS.md)
+## 更新
 
-## Ubuntu 24.04 實驗版
+Windows 啟動時自動辨識顯示呼叫結構，不以版本號或程式雜湊限制翻譯。照常使用官方更新；只有顯示結構無法辨識時，才需更新本工具。
 
-提供 x86_64 `.deb` 與可攜 `.tar.gz`，採獨立 Rust 啟動器及受限 ptrace 等長記憶體資料補丁。指定 Zed 1.23.2 包有 664 條簡體中文候選，各語言覆蓋不同。暫不含 Linux 系統匣和網頁設定；編輯器內部重新啟動後需由工具再次啟動。
+## 授權與致謝
 
-啟動前自動等待 Wayland 輸入裝置就緒，逾時且有 X11 時退回 X11。可用 `--display-server wayland` 或 `--display-server x11` 手動指定。見 [Linux 使用說明](docs/LINUX.md)。
+自有程式碼 MIT；社群譯文與 Zed 衍生素材保留 GPL-3.0。 [授權與致謝](THIRD_PARTY_NOTICES.md)
+
+Zed Industries · LI-NA/zed-i18n · Microsoft/vscode-loc · Frida · Smithay/wayland-rs · Vue · Element Plus · async-openai. [致謝](ACKNOWLEDGEMENTS.md)

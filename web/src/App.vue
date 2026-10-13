@@ -4,14 +4,28 @@ import {ElButton,ElInput,ElSelect,ElOption,ElRadioGroup,ElRadio,ElCheckbox,ElCon
 import zhCN from 'element-plus/es/locale/lang/zh-cn';
 import zhTW from 'element-plus/es/locale/lang/zh-tw';
 import en from 'element-plus/es/locale/lang/en';
+import ja from 'element-plus/es/locale/lang/ja';
+import ko from 'element-plus/es/locale/lang/ko';
+import de from 'element-plus/es/locale/lang/de';
+import fr from 'element-plus/es/locale/lang/fr';
+import es from 'element-plus/es/locale/lang/es';
+import it from 'element-plus/es/locale/lang/it';
+import ptBR from 'element-plus/es/locale/lang/pt-br';
+import ru from 'element-plus/es/locale/lang/ru';
+import pl from 'element-plus/es/locale/lang/pl';
+import cs from 'element-plus/es/locale/lang/cs';
+import tr from 'element-plus/es/locale/lang/tr';
+import languageCatalog from '../../data/locales.json';
 import {messages} from './locales';
 const tab=ref('startup'),language=ref('zh-CN'),config=ref({}),folder=ref(''),key=ref(''),storeKey=ref(false),models=ref([]),runtime=ref({}),busy=ref(false),notice=ref(null);
 const translationLanguages=ref([]),aiLanguages=ref([]);
 const forcedTheme=new URLSearchParams(location.search).get('__theme');
 const dark=ref(forcedTheme==='dark'||(forcedTheme!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches));
 const t=computed(()=>messages[language.value]||messages['zh-CN']);
-const locale=computed(()=>({'zh-CN':zhCN,'zh-TW':zhTW,en}[language.value]));
-const providerNames=computed(()=>[{id:'deepseek',label:'DeepSeek'},{id:'glm',label:'GLM · BigModel'},{id:'zai',label:'GLM · Z.AI'},{id:'compatible',label:language.value==='en'?'OpenAI-compatible':language.value==='zh-TW'?'OpenAI 相容服務':'OpenAI 兼容服务'}]);
+const uiLanguages=languageCatalog.languages;
+const elementLocales={'zh-CN':zhCN,'zh-TW':zhTW,en,'ja-JP':ja,'ko-KR':ko,'de-DE':de,'fr-FR':fr,'es-ES':es,'it-IT':it,'pt-BR':ptBR,'ru-RU':ru,'pl-PL':pl,'cs-CZ':cs,'tr-TR':tr};
+const locale=computed(()=>elementLocales[language.value]||zhCN);
+const providerNames=computed(()=>[{id:'deepseek',label:'DeepSeek'},{id:'glm',label:'GLM · BigModel'},{id:'zai',label:'GLM · Z.AI'},{id:'compatible',label:t.value.compatibleProvider}]);
 const token=document.querySelector('meta[name=zed-zh-token]').content;
 let heartbeat,statusTimer;
 async function api(path,data){
@@ -22,7 +36,12 @@ async function api(path,data){
 async function action(path,data){busy.value=true;notice.value=null;try{const result=await api(path,data);notice.value=result.code?result:null;if(result.models){models.value=result.models;if(!config.value.model)config.value.model=result.models[0]||'';}if(result.folder)folder.value=result.folder;if(path==='status')runtime.value=result;if(path==='ai/save'&&result.code==='saved')key.value='';return result;}catch{notice.value={code:'failed'};}finally{busy.value=false;}}
 function aiInput(){return {provider:config.value.provider,api_base:config.value.api_base,model:config.value.model||'',key:key.value,store_key:storeKey.value,auto_translate:!!config.value.auto_translate,translation_languages:aiLanguages.value};}
 function changeProvider(){const defaults={deepseek:['https://api.deepseek.com/v1','deepseek-flash'],glm:['https://open.bigmodel.cn/api/paas/v4',''],zai:['https://api.z.ai/api/paas/v4',''],compatible:['','']}[config.value.provider];[config.value.api_base,config.value.model]=defaults;key.value='';models.value=defaults[1]?[defaults[1]]:[];storeKey.value=false;notice.value=null;}
-async function changeLanguage(){document.documentElement.lang=language.value;await api('language',{language:language.value});}
+async function changeLanguage(){
+ const previous=config.value.ui_language||'zh-CN';
+ const result=await action('language',{language:language.value});
+ if(result?.code==='localeSaved'){config.value.ui_language=language.value;}else{language.value=previous;}
+ document.documentElement.lang=language.value;
+}
 async function changeTranslationLanguage(value){
  const previous=config.value.translation_language;
  const result=await action('translation-language',{language:value});
@@ -41,8 +60,8 @@ onBeforeUnmount(()=>{clearInterval(heartbeat);clearInterval(statusTimer);window.
  <ElConfigProvider :locale="locale">
  <aside class="sidebar">
   <div class="brand"><img src="/mark.svg" alt=""/><span>Localize</span></div>
-  <nav aria-label="Navigation"><button v-for="name in ['startup','ai','runtime','help']" :key="name" :class="{selected:tab===name}" :aria-current="tab===name?'page':undefined" @click="tab=name;notice=null">{{t[name]}}</button></nav>
-  <div class="sidebar-bottom"><div class="sidebar-state" role="status"><span class="state-dot"/>{{t[state]}}</div><label>{{t.pageLanguage}}</label><ElSelect v-model="language" :aria-label="t.pageLanguage" @change="changeLanguage"><ElOption label="简体中文" value="zh-CN"/><ElOption label="繁體中文" value="zh-TW"/><ElOption label="English" value="en"/></ElSelect><button class="theme-button" :aria-label="t.theme" @click="dark=!dark">{{dark?'◐':'◑'}}</button></div>
+  <nav :aria-label="t.navigation"><button v-for="name in ['startup','ai','runtime','help']" :key="name" :class="{selected:tab===name}" :aria-current="tab===name?'page':undefined" @click="tab=name;notice=null">{{t[name]}}</button></nav>
+  <div class="sidebar-bottom"><div class="sidebar-state" role="status"><span class="state-dot"/>{{t[state]}}</div><label>{{t.pageLanguage}}</label><ElSelect v-model="language" :aria-label="t.pageLanguage" :disabled="busy" @change="changeLanguage"><ElOption v-for="item in uiLanguages" :key="item.id" :label="item.name" :value="item.id"/></ElSelect><button class="theme-button" :aria-label="t.theme" @click="dark=!dark">{{dark?'◐':'◑'}}</button></div>
  </aside>
  <main class="content">
   <h1>{{t[tab]}}</h1>
@@ -72,3 +91,11 @@ onBeforeUnmount(()=>{clearInterval(heartbeat);clearInterval(statusTimer);window.
  </main>
  </ElConfigProvider>
 </template>
+<style scoped>
+.sidebar{overflow-y:auto}
+.brand,nav,.sidebar-bottom{flex-shrink:0}
+nav button{height:auto;min-height:48px;white-space:normal;overflow-wrap:anywhere;padding:12px 16px}
+.actions :deep(.el-button){height:auto;white-space:normal}
+.actions :deep(.el-button>span){overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:750px){nav button{min-height:46px;padding:10px}}
+</style>

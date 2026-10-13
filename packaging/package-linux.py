@@ -2,15 +2,17 @@
 import argparse,json,shutil,subprocess,tarfile,hashlib,re
 from pathlib import Path
 
-p=argparse.ArgumentParser();p.add_argument('--binary',type=Path,required=True);p.add_argument('--rust-licenses',type=Path,required=True);p.add_argument('--version',default='0.3.1-alpha.2');args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--binary',type=Path,required=True);p.add_argument('--rust-licenses',type=Path,required=True);p.add_argument('--version',default='0.4.0');args=p.parse_args()
 if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[a-z]+\.\d+)?',args.version):p.error('Invalid release version')
 deb_version=args.version.replace('-','~')
 root=Path(__file__).resolve().parents[1];dist=root/'dist';dist.mkdir(exist_ok=True)
 stage=Path('/tmp/zed-localize-build')/('package-'+args.version);stage.mkdir(parents=True,exist_ok=True)
 payload=stage/'opt/zed-localize';payload.mkdir(parents=True,exist_ok=True)
 shutil.copy2(args.binary,payload/'zed-localize-linux');(payload/'zed-localize-linux').chmod(0o755)
-for name in ('README.md','README.en.md','README.zh-TW.md','LICENSE','ACKNOWLEDGEMENTS.md','THIRD_PARTY_NOTICES.md'):
+for name in ('LICENSE','ACKNOWLEDGEMENTS.md','THIRD_PARTY_NOTICES.md'):
     shutil.copy2(root/name,payload/name)
+for source in root.glob('README*.md'):
+    shutil.copy2(source,payload/source.name)
 for folder in ('assets/locales','docs'):
     shutil.copytree(root/folder,payload/folder,dirs_exist_ok=True)
 (payload/'licenses').mkdir(exist_ok=True)
@@ -21,9 +23,9 @@ shutil.copytree(args.rust_licenses,payload/'licenses/rust-dependencies',dirs_exi
 metadata={'repository':'dogxie2333/zed-localize','commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),'release':args.version,'platform':'Ubuntu 24.04 x86_64','backend':'experimental-ptrace-equal-byte-ui','source_license':'MIT','community_resources':'GPL-3.0'}
 (payload/'SOURCE.json').write_text(json.dumps(metadata,indent=2)+'\n')
 control=stage/'DEBIAN';control.mkdir(exist_ok=True)
-(control/'control').write_text('Package: zed-localize\nVersion: '+deb_version+'\nArchitecture: amd64\nMaintainer: Zed Localize contributors <noreply@github.com>\nDepends: libc6 (>= 2.39)\nRecommends: fonts-noto-cjk\nSection: editors\nPriority: optional\nDescription: Experimental independent localization companion for official Zed\n')
+(control/'control').write_text('Package: zed-localize\nVersion: '+deb_version+'\nArchitecture: amd64\nMaintainer: Zed Localize contributors <noreply@github.com>\nDepends: libc6 (>= 2.39)\nRecommends: fonts-noto-cjk\nSection: editors\nPriority: optional\nDescription: Independent localization companion for official Zed\n')
 desktop=stage/'usr/share/applications';desktop.mkdir(parents=True,exist_ok=True)
-(desktop/'zed-localize.desktop').write_text('[Desktop Entry]\nType=Application\nName=Zed Localize\nComment=Experimental localization launcher for official Zed\nExec=/opt/zed-localize/zed-localize-linux launch\nIcon=zed-localize\nTerminal=false\nCategories=Development;TextEditor;\n')
+(desktop/'zed-localize.desktop').write_text('[Desktop Entry]\nType=Application\nName=Zed Localize\nComment=Localization launcher for official Zed\nExec=/opt/zed-localize/zed-localize-linux launch\nIcon=zed-localize\nTerminal=false\nCategories=Development;TextEditor;\n')
 icons=stage/'usr/share/icons/hicolor/scalable/apps';icons.mkdir(parents=True,exist_ok=True)
 shutil.copy2(root/'web/public/mark.svg',icons/'zed-localize.svg')
 deb=dist/('zed-localize_'+args.version+'_amd64.deb')

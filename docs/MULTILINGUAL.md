@@ -1,7 +1,9 @@
-# 多语言维护
+# 多语言
 
-`tools/export_locales.py --toolkit <固定社区目录>` 复用上游校验器，导出离线显示词典。`tools/community_bridge.py prepare --locale ja-JP ...` 复用上游语境分组、语言术语和批处理。
+支持简体中文、繁體中文、日本語、한국어、Deutsch、Français、Español、Italiano、Português (Brasil)、Русский、Polski、Čeština、Türkçe；English 使用原文。
 
-社区已有译文优先使用。`tools/update.py` 跟随官方与社区变化，为每种语言生成公开新增文案任务；AI 输出独立待审草稿。审核后的文案可重新导出，不能自动扩大已验证二进制清单。
+设置页与 README 提供相同的 14 种语言。左侧导航底部切换设置页语言；启动设置中选择 Zed 翻译语言。AI 可以独立选择多个目标语言。
 
-运行配置位于 EXE 旁 `zed-zh-data/settings.json`，示例见 examples/settings.json。AI 缓存位于 draft-translations.redb，各语言草稿位于 drafts/<语言>.json；缓存按语义、语言、模型和校验策略隔离。
+现有词典复用社区项目。AI 批量翻译新增文案时带上公开源码语境与对应语言术语，缓存按语言、源文、语境、模型和校验规则隔离。
+
+译文的覆盖范围受平台、文字长度与内容保护限制；未覆盖的文案保留原文。切换 Zed 语言后重启编辑器，可完整刷新已有文字。

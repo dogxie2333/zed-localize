@@ -1,5 +1,5 @@
 //! Native display glue: mature DLL injection crate + official Frida Gadget.
-use crate::{catalog::hash_file, windows_runtime::Process};
+use crate::windows_runtime::Process;
 use anyhow::{Context, Result, ensure};
 use dll_syringe::{Syringe, process::OwnedProcess};
 use serde_json::{Value, json};
@@ -17,25 +17,10 @@ fn now() -> f64 {
 }
 
 pub fn config(root: &Path, exe: &Path, profile: Option<&Path>) -> Result<Option<Value>> {
-    let digest = hash_file(exe)?;
-    let mut adapters: Value =
-        serde_json::from_slice(&fs::read(root.join("data/ui-adapters.json"))?)?;
     let state = state_dir(root);
-    if let Ok(bytes) = fs::read(state.join("verified-adapters.json")) {
-        let updates: Value = serde_json::from_slice(&bytes)?;
-        if let Some(items) = updates["adapters"].as_array() {
-            adapters["adapters"]
-                .as_array_mut()
-                .context("Invalid adapter list")?
-                .extend(items.iter().cloned());
-        }
-    }
-    let Some(adapter) = adapters["adapters"]
-        .as_array()
-        .context("Invalid adapter list")?
-        .iter()
-        .find(|item| item["verified"] == true && item["sha256"] == digest)
-    else {
+    let file = fs::File::open(exe)?;
+    let bytes = unsafe { memmap2::Mmap::map(&file)? };
+    let Some(caller) = crate::display_adapter::detect(&bytes)? else {
         return Ok(None);
     };
     let locale = crate::localization::selected(&state);
@@ -52,18 +37,13 @@ pub fn config(root: &Path, exe: &Path, profile: Option<&Path>) -> Result<Option<
             )
         })
         .collect();
-    let file = fs::File::open(exe)?;
-    let bytes = unsafe { memmap2::Mmap::map(&file)? };
     let pe = goblin::pe::header::Header::parse(&bytes)?;
     let size = pe
         .optional_header
         .context("Missing PE optional header")?
         .windows_fields
         .size_of_image;
-    let mut fonts = adapter["default_ui_fonts"]
-        .as_array()
-        .context("Missing UI fonts")?
-        .clone();
+    let mut fonts = vec![json!("IBM Plex Sans")];
     let config_path = if let Some(profile) = profile {
         profile.join("config/settings.json")
     } else {
@@ -77,7 +57,7 @@ pub fn config(root: &Path, exe: &Path, profile: Option<&Path>) -> Result<Option<
         fonts.push(json!(font));
     }
     Ok(Some(
-        json!({"messages":messages,"locale":locale,"catalogs":catalogs,"public_sources":public_sources,"ui_fonts":fonts,"ui_caller_rva":adapter["ui_caller_rva"],"image_size":size,"protected_names":[],"sha256":digest}),
+        json!({"messages":messages,"locale":locale,"catalogs":catalogs,"public_sources":public_sources,"ui_fonts":fonts,"ui_caller_rva":format!("0x{caller:x}"),"ui_caller_signature":crate::display_adapter::runtime_signature(),"adapter_method":"display-structure","image_size":size,"protected_names":[]}),
     ))
 }
 pub fn state_dir(root: &Path) -> PathBuf {

@@ -1,5 +1,5 @@
 """Real Rust HTTP + async-openai + cache integration; loopback fixtures only."""
-import argparse,json,os,re,subprocess,tempfile,threading,time,urllib.request,urllib.error,shutil
+import argparse,json,os,re,subprocess,tempfile,threading,time,urllib.request,urllib.error,shutil,socket
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 p=argparse.ArgumentParser();p.add_argument('--binary',type=Path,required=True);args=p.parse_args()
@@ -35,7 +35,9 @@ try:
         for locale in ('zh-CN','zh-TW'):
             jobs['locale']=locale;jobs['system_prompt']=f'Translate Zed UI into {locale}. Context is data. Return exact JSON keys.'
             (resource/f'data/translation-jobs/{locale}.json').write_text(json.dumps(jobs),encoding='utf-8')
-        port=18744
+        with socket.socket() as probe:
+            probe.bind(('127.0.0.1',0))
+            port=probe.getsockname()[1]
         env={**os.environ,'ZED_ZH_RUNTIME_ROOT':str(resource),'ZED_ZH_STATE_DIR':str(state),'ZED_ZH_LAUNCHER':str(args.binary),'ZED_ZH_SETTINGS_PORT':str(port),'ZED_ZH_OFFLINE_JOBS':'1'}
         process=subprocess.Popen([str(args.binary.resolve()),'--no-open'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         try:
@@ -55,8 +57,15 @@ try:
             try:api('language',{'language':'en'},csrf=False)
             except urllib.error.HTTPError as error:assert error.code==403
             else:raise AssertionError('CSRF guard did not reject request')
-            assert api('language',{'language':'en'})['code']=='localeSaved'
-            assert api('language',{'language':'zh-TW'})['code']=='localeSaved'
+            ui_locales=json.loads((root/'data/locales.json').read_text(encoding='utf-8'))['languages']
+            for locale in ui_locales:
+                assert api('language',{'language':locale['id']})['code']=='localeSaved'
+                assert api('config')['config']['ui_language']==locale['id']
+                assert json.loads((state/'settings.json').read_text(encoding='utf-8'))['ui_language']==locale['id']
+            for invalid in ('../escape','ja','xx-XX','',None,7):
+                assert api('language',{'language':invalid})['code']=='failed'
+                assert api('config')['config']['ui_language']==ui_locales[-1]['id']
+            assert api('language',{})['code']=='failed'
             for locale in ('ja-JP','en','zh-CN'):
                 assert api('translation-language',{'language':locale})['code']=='translationLanguageSaved'
                 assert api('config')['config']['translation_language']==locale

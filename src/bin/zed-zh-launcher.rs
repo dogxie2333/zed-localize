@@ -664,38 +664,13 @@ mod desktop {
 
     #[cfg(feature = "ai")]
     fn update_compat(root: &Path) -> Result<()> {
-        let stamp = state(root).join("compat-last-check.json");
-        if let Ok(bytes) = fs::read(&stamp)
-            && let Ok(data) = serde_json::from_slice::<Value>(&bytes)
-            && now() - data["time"].as_f64().unwrap_or_default() < 3600.0
-        {
-            return Ok(());
-        }
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()?;
-        let result=runtime.block_on(async {
-            let client=reqwest::Client::builder().timeout(Duration::from_secs(20)).user_agent("zed-zh-addon-native-maintenance").build()?;
-            let data:Value=client.get("https://raw.githubusercontent.com/dogxie2333/zed-localize/main/data/ui-adapters.json").send().await?.error_for_status()?.json().await?;
-            anyhow::ensure!(data["schema"]==1,"Unexpected adapter schema");
-            for adapter in data["adapters"].as_array().context("Missing adapter list")? {
-                let hash=adapter["sha256"].as_str().context("Invalid adapter hash")?;
-                anyhow::ensure!(hash.len()==64 && hash.bytes().all(|c|c.is_ascii_hexdigit()) && adapter["verified"].is_boolean(),"Invalid adapter data");
-            }
-            Ok::<Value,anyhow::Error>(data)
-        });
-        match result {
-            Ok(data) => {
-                write_json(&state(root).join("verified-adapters.json"), &data)?;
-                write_json(
-                    &stamp,
-                    &json!({"time":now(),"status":"checked","adapter_count":data["adapters"].as_array().map_or(0,Vec::len)}),
-                )?;
-            }
-            Err(_) => {
-                write_json(&stamp, &json!({"time":now(),"status":"check-failed"}))?;
-            }
-        }
+        let current = settings(root);
+        let exe = Path::new(current["zed_exe"].as_str().unwrap_or("D:\\Zed\\Zed.exe"));
+        let config = zed_zh_addon::gadget_runtime::config(root, exe, None)?;
+        write_json(
+            &state(root).join("compat-last-check.json"),
+            &json!({"time":now(),"status":"checked","method":"display-structure","supported":config.is_some()}),
+        )?;
         if settings(root)["auto_translate"] == true {
             spawn_settings(root, true)?;
         }

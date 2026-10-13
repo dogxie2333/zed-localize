@@ -96,6 +96,13 @@ pub async fn serve(root: PathBuf, state: PathBuf, launcher: PathBuf, open: bool)
     let port = std::env::var("ZED_ZH_SETTINGS_PORT")
         .ok()
         .and_then(|v| v.parse().ok())
+        .or_else(|| {
+            read(&state.join("settings-address.json"))?
+                .get("port")?
+                .as_u64()?
+                .try_into()
+                .ok()
+        })
         .unwrap_or(18743);
     let listener = match tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await
     {
@@ -106,8 +113,16 @@ pub async fn serve(root: PathBuf, state: PathBuf, launcher: PathBuf, open: bool)
             }
             return Ok(());
         }
+        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+            tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).await?
+        }
         Err(error) => return Err(error.into()),
     };
+    let port = listener.local_addr()?.port();
+    write(
+        &state.join("settings-address.json"),
+        &json!({"port":port,"pid":std::process::id()}),
+    )?;
     let mut random = [0u8; 32];
     getrandom::fill(&mut random).map_err(|_| anyhow::anyhow!("Nonce initialization failed"))?;
     let app = App {
@@ -273,7 +288,7 @@ async fn close(State(app): State<App>) -> Json<Value> {
 async fn language(State(app): State<App>, Json(value): Json<Value>) -> Json<Value> {
     let Some(language) = value["language"]
         .as_str()
-        .filter(|v| ["zh-CN", "zh-TW", "en"].contains(v))
+        .filter(|v| crate::localization::supported(v))
     else {
         return reply("failed");
     };
@@ -312,10 +327,21 @@ async fn browse(Json(value): Json<Value>) -> Json<Value> {
     let language = value["language"].as_str().unwrap_or("zh-CN").to_owned();
     let result = tokio::task::spawn_blocking(move || {
         rfd::FileDialog::new()
-            .set_title(if language == "en" {
-                "Select Zed installation folder"
-            } else {
-                "选择 Zed 安装文件夹"
+            .set_title(match language.as_str() {
+                "en" => "Zed installation folder",
+                "zh-TW" => "Zed 安裝資料夾",
+                "ja-JP" => "Zed のインストールフォルダー",
+                "ko-KR" => "Zed 설치 폴더",
+                "de-DE" => "Installationsordner von Zed",
+                "fr-FR" => "Dossier d’installation de Zed",
+                "es-ES" => "Carpeta de instalación de Zed",
+                "it-IT" => "Cartella di installazione di Zed",
+                "pt-BR" => "Pasta de instalação do Zed",
+                "ru-RU" => "Папка установки Zed",
+                "pl-PL" => "Folder instalacyjny Zed",
+                "cs-CZ" => "Instalační složka Zed",
+                "tr-TR" => "Zed kurulum klasörü",
+                _ => "Zed 安装文件夹",
             })
             .set_directory(folder)
             .pick_folder()
@@ -326,7 +352,7 @@ async fn browse(Json(value): Json<Value>) -> Json<Value> {
         _ => reply("cancelled"),
     }
 }
-fn inspect_folder(root: &Path, state: &Path, folder: &str) -> Result<(PathBuf, bool)> {
+fn inspect_folder(_root: &Path, _state: &Path, folder: &str) -> Result<(PathBuf, bool)> {
     let exe = Path::new(folder).join("Zed.exe");
     let file = fs::File::open(&exe)?;
     let map = unsafe { memmap2::MmapOptions::new().map(&file)? };
@@ -337,19 +363,7 @@ fn inspect_folder(root: &Path, state: &Path, folder: &str) -> Result<(PathBuf, b
             .is_some_and(|header| header.windows_fields.subsystem == 2),
         "Not graphical Zed"
     );
-    let hash = crate::catalog::hash_file(&exe)?;
-    let mut adapters = read(&root.join("data/ui-adapters.json")).unwrap_or(json!({"adapters":[]}));
-    if let Some(cached) = read(&state.join("verified-adapters.json"))
-        && let Some(entries) = cached["adapters"].as_array()
-        && let Some(known) = adapters["adapters"].as_array_mut()
-    {
-        known.extend(entries.clone());
-    }
-    let supported = adapters["adapters"].as_array().is_some_and(|entries| {
-        entries
-            .iter()
-            .any(|entry| entry["sha256"] == hash && entry["verified"] == true)
-    });
+    let supported = crate::display_adapter::detect(&map)?.is_some();
     Ok((exe, supported))
 }
 async fn inspect(State(app): State<App>, Json(value): Json<Value>) -> Json<Value> {

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="112" viewBox="0 0 640 112" role="img" aria-labelledby="title">
+  <title id="title">Zed Localize</title>
+  <rect width="640" height="112" rx="12" fill="#fff"/>
+  <g transform="translate(26 16) scale(.83)" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="14,65 14,14 82,14 14,82 82,82 82,44"/>
+    <polyline points="28,55 28,28 68,28"/>
+    <polyline points="28,68 68,68 68,41"/>
+  </g>
+  <text x="132" y="72" fill="#000" font-family="system-ui, sans-serif" font-size="48" font-weight="650">Zed Localize</text>
+</svg>

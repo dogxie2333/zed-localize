@@ -3,11 +3,14 @@ from pathlib import Path
 import hashlib,json,subprocess,zipfile
 r=Path(__file__).resolve().parents[1];dist=r/'dist';dist.mkdir(exist_ok=True)
 exe=dist/'Zed-Localize.exe';assert exe.is_file()
-files={'Zed-Localize.exe':exe,'README.md':r/'README.md','README.en.md':r/'README.en.md','README.zh-TW.md':r/'README.zh-TW.md','LICENSE':r/'LICENSE','ACKNOWLEDGEMENTS.md':r/'ACKNOWLEDGEMENTS.md','THIRD_PARTY_NOTICES.md':r/'THIRD_PARTY_NOTICES.md'}
+files={'Zed-Localize.exe':exe,'LICENSE':r/'LICENSE','ACKNOWLEDGEMENTS.md':r/'ACKNOWLEDGEMENTS.md','THIRD_PARTY_NOTICES.md':r/'THIRD_PARTY_NOTICES.md'}
+for file in r.glob('README*.md'):
+    files[file.name]=file
 for file in (r/'licenses').rglob('*'):
     if file.is_file():files[file.relative_to(r).as_posix()]=file
 files['examples/settings.json']=r/'examples/settings.json'
-for file in (r/'docs').glob('*.md'):
+for file in (r/'docs').glob('*'):
+    if not file.is_file() or file.suffix not in ('.md','.svg'):continue
     files[file.relative_to(r).as_posix()]=file
 files['data/locales.json']=r/'data/locales.json'
 archive=dist/'zed-localize-windows-x64.zip'

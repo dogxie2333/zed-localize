@@ -1,6 +1,7 @@
 pub mod catalog;
 #[cfg(all(windows, feature = "ui"))]
 pub mod configuration;
+pub mod display_adapter;
 #[cfg(windows)]
 pub mod gadget_runtime;
 #[cfg(target_os = "linux")]

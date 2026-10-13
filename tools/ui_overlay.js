@@ -133,6 +133,13 @@ rpc.exports = {
         fonts=new Set(config.ui_fonts);
         marker=config.ui_caller_rva;
         uiMarkerAddress=Process.mainModule.base.add(marker);
+        if(config.adapter_method==='display-structure') {
+            const signature=config.ui_caller_signature;
+            if(!signature || typeof signature.bytes!=='string' || !Array.isArray(signature.relocations)) throw new Error('Missing UI display signature');
+            const expected=signature.bytes.match(/.{2}/g).map(byte=>parseInt(byte,16));
+            const actual=new Uint8Array(uiMarkerAddress.sub(signature.caller_offset).readByteArray(expected.length));
+            if(!expected.every((byte,index)=>signature.relocations.some(([start,end])=>index>=start && index<end)||actual[index]===byte)) throw new Error('Loaded UI display structure changed');
+        }
         attachExisting=config.attach_existing===true;
         for (const name of config.protected_names||[]) protectedNames.add(name);
         moduleObserver=Process.attachModuleObserver({onAdded(module){

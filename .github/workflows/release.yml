@@ -15,19 +15,19 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.13'
-      - name: Build Ubuntu preview
+      - name: Build Ubuntu package
         run: |
           rustup toolchain install 1.99.0 --profile minimal
           cargo +1.99.0 build --release --locked --bin zed-localize-linux
           TARGET=$(cargo metadata --no-deps --format-version 1 | python -c 'import json,sys;print(json.load(sys.stdin)["target_directory"])')
           python tools/collect_licenses.py --toolchain 1.99.0 --target x86_64-unknown-linux-gnu --output /tmp/zed-localize-build/rust-linux-licenses
           VERSION=${GITHUB_REF_NAME#v}
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION=0.3.1-alpha.2; fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION=0.4.0; fi
           python packaging/package-linux.py --binary "$TARGET/release/zed-localize-linux" --rust-licenses /tmp/zed-localize-build/rust-linux-licenses --version "$VERSION"
           dpkg-deb --info "dist/zed-localize_${VERSION}_amd64.deb"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ubuntu24-x86_64-preview
+          name: ubuntu24-x86_64
           path: |
             dist/zed-localize_*_amd64.deb
             dist/zed-localize-ubuntu24-x86_64.tar.gz
@@ -77,10 +77,10 @@ jobs:
             dist/Zed-Localize.exe
             dist/zed-localize-windows-x64.zip
             dist/SHA256SUMS.txt
-      - name: Publish prerelease
+      - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |
           $assets=@('dist/Zed-Localize.exe','dist/zed-localize-windows-x64.zip','dist/SHA256SUMS.txt')
           gh release view $env:GITHUB_REF_NAME 2>$null
-          if($LASTEXITCODE -eq 0){gh release upload $env:GITHUB_REF_NAME @assets --clobber}else{gh release create $env:GITHUB_REF_NAME @assets --prerelease --title "$env:GITHUB_REF_NAME" --notes '官方 Zed 主线更新、透明托盘图标、原生 Rust 按需设置服务、13 种编辑器翻译、三语言设置页面与多语言 AI 批处理。分发不含 Python。自有代码 MIT，社区资源保留原许可；新二进制适配仍需验证。'}
+          if($LASTEXITCODE -eq 0){gh release upload $env:GITHUB_REF_NAME @assets --clobber;gh release edit $env:GITHUB_REF_NAME --prerelease=false}else{gh release create $env:GITHUB_REF_NAME @assets --title "$env:GITHUB_REF_NAME" --notes '跟随官方 Zed 主线更新，Windows 显示结构自动识别；完整设置页语言与多语言 README，轻量托盘和按需配置，离线显示与可选 AI 批量翻译。Windows EXE / ZIP 与 Ubuntu DEB / tar.gz。自有代码 MIT，社区资源保留原许可。'}

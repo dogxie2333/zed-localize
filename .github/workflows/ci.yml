@@ -45,6 +45,7 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
           node ../tools/test_display_locales.js
+          node ../tools/test_ui_locales.mjs
       - name: Rust checks
         run: |
           cargo +1.99.0 fmt --all --check

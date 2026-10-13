@@ -16,7 +16,7 @@ mod linux {
     #[derive(Parser)]
     #[command(
         version,
-        about = "Ubuntu x86_64 experimental official-Zed localization companion"
+        about = "Ubuntu x86_64 localization companion for official Zed"
     )]
     pub struct Args {
         #[arg(long)]

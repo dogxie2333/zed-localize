@@ -1,45 +1,57 @@
-# Zed Localize
+<div align="center">
+<img src="docs/brand.svg" alt="Zed Localize" width="520">
 
-[简体中文](README.md) · English · [繁體中文](README.zh-TW.md)
+Interface localization for Zed, following the official mainline.
 
-Localize **official Zed** while keeping its **mainline releases and official updater**.
+[![Release](https://img.shields.io/github/v/release/dogxie2333/zed-localize?color=black)](https://github.com/dogxie2333/zed-localize/releases/latest) [![CI](https://img.shields.io/github/actions/workflow/status/dogxie2333/zed-localize/ci.yml?branch=main&label=CI&color=black)](https://github.com/dogxie2333/zed-localize/actions/workflows/ci.yml) [![MIT](https://img.shields.io/badge/code-MIT-black)](LICENSE)
 
-**The Windows edition is a standalone DLL injection tool, separate from Zed itself.** It injects the official Frida Gadget DLL into the Zed process and translates the in-memory display path. It leaves the official Zed.exe on disk unchanged and is not a Zed extension.
+**[Download](https://github.com/dogxie2333/zed-localize/releases/latest) · [Guide](docs/LOCAL_USAGE.md) · [Issues](https://github.com/dogxie2333/zed-localize/issues)**
+</div>
 
-## Getting started
+[简体中文](README.md) · [English](README.en.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Español](README.es.md) · [Italiano](README.it.md) · [Português (Brasil)](README.pt-BR.md) · [Русский](README.ru.md) · [Polski](README.pl.md) · [Čeština](README.cs.md) · [Türkçe](README.tr.md)
 
-Download `Zed-Localize.exe` or the portable ZIP from [Releases](https://github.com/dogxie2333/zed-localize/releases). Keep it in a writable, permanent folder.
+## Download
 
-1. Open the tool and select the Zed installation folder.
-2. Choose the Zed translation language and automatic or manual startup, then save.
-3. Open Zed and keep using your existing shortcuts.
+| Platform | Download |
+|---|---|
+| Windows x64 | [Zed-Localize.exe](https://github.com/dogxie2333/zed-localize/releases/latest/download/Zed-Localize.exe) · [ZIP](https://github.com/dogxie2333/zed-localize/releases/latest/download/zed-localize-windows-x64.zip) |
+| Ubuntu 24.04 x86_64 | [DEB](https://github.com/dogxie2333/zed-localize/releases/latest) · [tar.gz](https://github.com/dogxie2333/zed-localize/releases/latest/download/zed-localize-ubuntu24-x86_64.tar.gz) |
 
-Right-click the tray icon for settings, pause or exit. Settings run only for initialization or when opened manually. Existing settings, sign-in and extensions are preserved.
+## Quick start
 
-## Languages and AI
+**Windows** · `Zed-Localize.exe`
 
-Reuses 13 community catalogs: Simplified/Traditional Chinese, Japanese, Korean, German, French, Spanish, Italian, Brazilian Portuguese, Russian, Polish, Czech and Turkish. English restores original text. Restart Zed after switching to refresh all cached text.
+1. Select the Zed folder and translation language.
+2. Choose automatic or manual startup, save, then open Zed.
+3. Right-click the tray icon for settings, pause or exit.
 
-Zed translation language and settings-page language are separate. The page supports Simplified Chinese, Traditional Chinese and English. UTF-16 length and safety restrictions leave some text in English; European-language coverage is limited. [Catalog counts](data/locales.json) describe eligible entries, not full UI coverage.
+The Windows edition is a standalone DLL injection tool, independent of Zed. It uses Frida Gadget to translate text in the display layer in memory. It is not a Zed extension and does not modify official program files.
 
-Optional DeepSeek, GLM and OpenAI-compatible APIs use async-openai. Select multiple languages to batch new public UI text with source context and language-specific terminology. Persistent caches separate languages, models and validation policies. Rendering never calls AI. Generated translations remain review drafts.
+**Linux**
 
-## Updates and files
+```sh
+sudo apt install ./zed-localize_0.4.0_amd64.deb
+/opt/zed-localize/zed-localize-linux --language en launch
+```
 
-Update official Zed normally. Verified binaries load the patch on launch and restart; unverified versions use English until an adapter is verified. The currently verified target is the specific Windows x64 Zed 1.23.2 package.
+Linux uses a command-line launcher and equal-length memory patches with partial interface coverage. Tray and web settings are not available on Linux. See the usage guide for its supported scope. [Guide](docs/LINUX.md)
 
-Rust handles startup, tray and on-demand settings; Vue / Element Plus handle the page. No extra runtime installation is required. Keep the adjacent `zed-zh-data/` when updating the tool; its legacy name preserves existing installations.
+## Features
 
-[Usage](docs/LOCAL_USAGE.md) · [Performance](docs/PERFORMANCE.md)
+- **Zed translation language / Settings language** — 简体中文 · English · 繁體中文 · 日本語 · 한국어 · Deutsch · Français · Español · Italiano · Português (Brasil) · Русский · Polski · Čeština · Türkçe
+- **Startup mode** — Start at sign-in / Start manually; Show tray icon.
+- **AI translation** — DeepSeek / GLM / OpenAI; AI translation languages.
 
-## Development and license
+Keep your settings, sign-in and extensions. Settings open on demand; everyday rendering uses local dictionaries only.
 
-Build with Rust 1.99 GNU, Node, Python for maintenance/build only, and MinGW: `packaging/build-portable.ps1`.
+Works with official Zed for Windows, automatically detects the installation structure and keeps official updates. AI generates translation drafts for review, cached per language. Some text remains English because of patch length limits.
 
-Original code: **MIT**. Community translations and Zed-derived assets retain **GPL-3.0** and upstream notices. [Licenses](THIRD_PARTY_NOTICES.md) · [Acknowledgements](ACKNOWLEDGEMENTS.md)
+## Updates
 
-## Ubuntu 24.04 preview
+Windows detects the display call structure at startup, without version or binary-hash gates. Use official Zed updates as usual; update this tool when a changed display structure can no longer be recognized.
 
-x86_64 `.deb` and portable `.tar.gz` use a standalone Rust launcher with a restricted ptrace memory-data backend. The verified Zed 1.23.2 binary has 664 Simplified Chinese candidates. Coverage differs per language. Linux does not yet include the Windows display hook, tray or web settings; relaunch through this tool after an internal editor restart.
+## License & acknowledgements
 
-Startup waits up to five seconds for Wayland input readiness, then falls back to X11 when available. Select a protocol explicitly with `--display-server wayland` or `--display-server x11`. See [Linux usage](docs/LINUX.md).
+Original code: MIT. Community translations and Zed-derived assets retain GPL-3.0. [License & acknowledgements](THIRD_PARTY_NOTICES.md)
+
+Zed Industries · LI-NA/zed-i18n · Microsoft/vscode-loc · Frida · Smithay/wayland-rs · Vue · Element Plus · async-openai. [Acknowledgements](ACKNOWLEDGEMENTS.md)

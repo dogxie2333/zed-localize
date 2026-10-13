@@ -64,7 +64,7 @@ pub fn classify(
     if let Some(attempts) = runtime["attachments"].as_array() {
         for item in attempts.iter().filter(|item| pids.contains(&item["pid"])) {
             if item["mode"] == "unsupported" {
-                return ("Zed 已运行 · 当前版本未适配", "unsupported");
+                return ("Zed 已运行 · 未识别显示结构", "unsupported");
             }
             if item["mode"] == "failed" {
                 return ("Zed 已运行 · 翻译加载失败", "error");
