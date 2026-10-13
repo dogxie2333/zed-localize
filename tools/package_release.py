@@ -9,7 +9,7 @@ for file in r.glob('README*.md'):
 for file in (r/'licenses').rglob('*'):
     if file.is_file():files[file.relative_to(r).as_posix()]=file
 files['examples/settings.json']=r/'examples/settings.json'
-for file in (r/'docs').glob('*'):
+for file in (r/'docs').rglob('*'):
     if not file.is_file() or file.suffix not in ('.md','.svg'):continue
     files[file.relative_to(r).as_posix()]=file
 files['data/locales.json']=r/'data/locales.json'

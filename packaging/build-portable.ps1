@@ -16,6 +16,8 @@ Push-Location -LiteralPath (Join-Path $zedRoot 'web')
 try {npm ci --no-audit --no-fund;if($LASTEXITCODE -ne 0){throw 'Frontend dependencies failed'};npm run build;if($LASTEXITCODE -ne 0){throw 'Frontend build failed'}} finally {Pop-Location}
 cargo "+$Toolchain" build --release --locked --features ai,ui,portable --bins
 if($LASTEXITCODE -ne 0){throw 'Rust component build failed'}
+python tools/collect_licenses.py --toolchain $Toolchain --target x86_64-pc-windows-gnu --all-features --output licenses/rust-dependencies
+if($LASTEXITCODE -ne 0){throw 'Dependency license collection failed'}
 python packaging/make_payload.py
 if($LASTEXITCODE -ne 0){throw 'Native payload packaging failed'}
 python packaging/append_payload.py

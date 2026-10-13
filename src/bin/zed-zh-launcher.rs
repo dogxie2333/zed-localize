@@ -40,7 +40,7 @@ mod desktop {
         {
             let exe = std::env::current_exe()?;
             exe.ancestors()
-                .find(|path| path.join("data/ui-adapters.json").is_file())
+                .find(|path| path.join("data/gadget.lock.json").is_file())
                 .map(Path::to_owned)
                 .context("Cannot locate local runtime")
         }

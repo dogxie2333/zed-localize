@@ -17,6 +17,8 @@
 | redb / windows-sys / notify / tray-icon / muda | Cargo.lock | 各自上游许可 | 缓存、Windows API、事件与托盘 |
 | Dulwich / tree-sitter / Pillow | 维护/构建环境 | 各自上游许可 | 维护端复用，不作为 Python 运行时发布 |
 
-构建依赖的完整许可由 tools/collect_licenses.py 收集。前端公开组件许可保留于 web/package-lock.json 对应上游包，本地构建导出至 licenses/frontend。Frida 下载只使用官方 release，压缩包和 DLL 哈希固定在 data/gadget.lock.json。
+Rust 依赖的完整许可由 tools/collect_licenses.py 在打包时自动收集，生成目录不进入 Git，但完整文本随发行包提供。前端组件声明位于 licenses/frontend，版本锁定在 web/package-lock.json。Frida 下载只使用官方 release，压缩包和 DLL 哈希固定在 data/gadget.lock.json。
+
+async-openai 0.42.2 的注册表包未附许可文件，licenses/async-openai-MIT.txt 保留其发布源码提交 c2deb8880566c3db35979654ea9dd45dc3deffd9 中的原始 MIT 文本。
 
 Zed 与 Zed 标志属于 Zed Industries；本项目为独立社区补丁。详见 ACKNOWLEDGEMENTS.md 与 assets/LICENSE.md。

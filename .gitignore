@@ -15,3 +15,5 @@ config.local.toml
 /dist/
 /web/node_modules/
 /web/dist/
+/licenses/rust-dependencies/
+/assets/icons/*.png
